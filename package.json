@@ -1,0 +1,40 @@
+{
+  "name": "feishu-claude-bot",
+  "version": "1.0.0",
+  "description": "飞书机器人，接入 Claude API 实现智能对话",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "build:standalone": "node scripts/build-standalone.js && copy dashboard\\standalone.html docs\\index.html",
+    "deploy": "npm run build:standalone && git add docs/ && git commit -m \"update health dashboard\" && git push"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.49.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.0",
+    "fast-xml-parser": "^5.8.0",
+    "node-cron": "^4.2.1",
+    "openai": "^4.73.0",
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.18.0",
+    "sharp": "^0.35.1",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/pdfkit": "^0.17.6",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

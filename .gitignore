@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.data/
+bots.json
+ecosystem.config.js
+*.msi
+*.exe
+.DS_Store
