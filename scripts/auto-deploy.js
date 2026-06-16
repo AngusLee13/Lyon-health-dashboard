@@ -12,18 +12,17 @@ function run(cmd, opts = {}) {
 
 console.log('[deploy] ========== ' + new Date().toLocaleString('zh-CN') + ' ==========');
 
-// 0. 确保 git 有 token 认证
+// 0. Git 认证：优先使用 GH_TOKEN，否则使用 Windows 凭据管理器
 const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
-if (!token) {
-  console.error('[deploy] 缺少 GH_TOKEN 环境变量，跳过推送');
-  process.exit(1);
-}
-
-// 设置带 token 的 remote
-try {
-  run('git remote set-url origin https://' + token + '@github.com/AngusLee13/Lyon-health-dashboard.git');
-} catch (e) {
-  console.error('[deploy] 设置 remote 失败: ' + e.message);
+if (token) {
+  try {
+    run('git remote set-url origin https://' + token + '@github.com/AngusLee13/Lyon-health-dashboard.git');
+    console.log('[deploy] 使用 GH_TOKEN 认证');
+  } catch (e) {
+    console.error('[deploy] 设置 remote 失败: ' + e.message);
+  }
+} else {
+  console.log('[deploy] 使用 Windows 凭据管理器认证');
 }
 
 // 1. 生成健康数据 JSON
@@ -38,17 +37,16 @@ require('./build-offline-dashboard');
 const dst = path.join(ROOT, 'docs', 'index.html');
 console.log('[deploy] docs/index.html: ' + (fs.statSync(dst).size / 1024).toFixed(1) + ' KB');
 
-// 3. Git 操作
+// 4. Git 操作
 try {
-  const status = run('git status --porcelain docs/');
+  const status = run('git status --porcelain docs/ dashboard/standalone-data.json dashboard/standalone.html');
   if (!status.trim()) {
     console.log('[deploy] 数据无变化，跳过提交');
-    // 恢复不带 token 的 remote
-    run('git remote set-url origin https://github.com/AngusLee13/Lyon-health-dashboard.git');
+    restoreRemote();
     process.exit(0);
   }
 
-  run('git add docs/');
+  run('git add docs/ dashboard/standalone-data.json dashboard/standalone.html');
   const date = new Date().toISOString().slice(0, 10);
   run('git commit -m "auto update: ' + date + '"');
   run('git push origin master');
@@ -57,10 +55,15 @@ try {
 } catch (e) {
   console.error('[deploy] Git 操作失败: ' + e.message);
 } finally {
-  // 恢复不带 token 的 remote（避免 token 泄露到 git config）
-  try {
-    run('git remote set-url origin https://github.com/AngusLee13/Lyon-health-dashboard.git');
-  } catch (_) {}
+  restoreRemote();
+}
+
+function restoreRemote() {
+  if (token) {
+    try {
+      run('git remote set-url origin https://github.com/AngusLee13/Lyon-health-dashboard.git');
+    } catch (_) {}
+  }
 }
 
 console.log('[deploy] ========== 完成 ==========');
