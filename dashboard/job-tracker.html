@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天津岗位 · 抓手看板</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-dim: rgba(59,130,246,0.12);
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      --info: #06b6d4;
+      --purple: #a78bfa;
+      --radius: 12px;
+
+      /* 匹配度专属色 */
+      --match-5: #22c55e;
+      --match-4: #3b82f6;
+      --match-3: #f59e0b;
+      --match-2: #f97316;
+      --match-1: #ef4444;
+
+      /* 企业性质色 */
+      --ent-state: #3b82f6;
+      --ent-state-sub: #6366f1;
+      --ent-port: #06b6d4;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --accent-dim: rgba(59,130,246,0.06);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    .topbar h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .status-dot.online { background: var(--success); }
+    .status-dot.offline { background: var(--danger); animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.875rem;
+    }
+    .theme-btn {
+      background: var(--border);
+      border: none;
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .theme-btn:hover { opacity: 0.8; }
+    .update-badge {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+
+    /* ── Stat Cards ── */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .stat-card .label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .stat-card .value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .stat-card .sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .stat-card.hl-green  { border-left: 4px solid var(--success); }
+    .stat-card.hl-blue   { border-left: 4px solid var(--accent); }
+    .stat-card.hl-orange { border-left: 4px solid var(--warning); }
+    .stat-card.hl-red    { border-left: 4px solid var(--danger); }
+    .stat-card.hl-purple { border-left: 4px solid var(--purple); }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Tab content ── */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .filters select, .filters input {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+    .filters select { cursor: pointer; }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-reset {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-reset:hover { color: var(--text); border-color: var(--text-muted); }
+
+    /* ── Job Cards Grid ── */
+    .job-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .job-grid { grid-template-columns: 1fr; }
+    }
+
+    .job-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .job-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+      border-color: var(--accent);
+    }
+
+    /* 匹配度左边框 */
+    .job-card.match-5 { border-left: 4px solid var(--match-5); }
+    .job-card.match-4 { border-left: 4px solid var(--match-4); }
+    .job-card.match-3 { border-left: 4px solid var(--match-3); }
+    .job-card.match-2 { border-left: 4px solid var(--match-2); }
+    .job-card.match-1 { border-left: 4px solid var(--match-1); }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .job-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+    .job-company {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 匹配星级 */
+    .match-stars {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .match-stars .star {
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .match-stars .star.on  { color: var(--warning); }
+    .match-stars .star.off { color: var(--border); }
+    .match-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-left: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+    }
+    .match-label.m5 { background: rgba(34,197,94,0.15);  color: var(--match-5); }
+    .match-label.m4 { background: rgba(59,130,246,0.15); color: var(--match-4); }
+    .match-label.m3 { background: rgba(245,158,11,0.15); color: var(--match-3); }
+    .match-label.m2 { background: rgba(249,115,22,0.15); color: var(--match-2); }
+    .match-label.m1 { background: rgba(239,68,68,0.15);  color: var(--match-1); }
+
+    /* 标签行 */
+    .job-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .tag-ent-state    { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .tag-ent-state-sub { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .tag-ent-port      { background: rgba(6,182,212,0.15);  color: #22d3ee; }
+    .tag-dept     { background: var(--accent-dim); color: var(--accent); }
+    .tag-salary   { background: rgba(34,197,94,0.12);  color: var(--success); }
+    .tag-ability  { background: rgba(168,85,247,0.12); color: #c084fc; }
+    .tag-warning  { background: rgba(245,158,11,0.12); color: var(--warning); }
+    .tag-danger   { background: rgba(239,68,68,0.12);  color: var(--danger); }
+    .tag-info     { background: rgba(6,182,212,0.12);  color: var(--info); }
+
+    /* 能力详情行 */
+    .job-detail-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .job-detail-row span {
+      background: var(--bg);
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .job-detail-row .highlight-yes { color: var(--success); }
+    .job-detail-row .highlight-no  { color: var(--danger); }
+    .job-detail-row .highlight-warn { color: var(--warning); }
+
+    /* 工作方向 */
+    .direction-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .direction-chip {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: rgba(168,85,247,0.1);
+      color: #c084fc;
+      border: 1px solid rgba(168,85,247,0.2);
+    }
+
+    /* 底部操作 */
+    .job-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .job-footer .deadline { color: var(--warning); font-weight: 600; }
+    .job-footer .source a { color: var(--accent); text-decoration: none; }
+    .job-footer .source a:hover { text-decoration: underline; }
+
+    /* ── 匹配对比 Tab ── */
+    .compare-table-wrap {
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .compare-table th, .compare-table td {
+      padding: 12px 14px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .compare-table th {
+      background: var(--card-bg);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .compare-table th:first-child,
+    .compare-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+      position: sticky;
+      left: 0;
+      background: var(--card-bg);
+      z-index: 1;
+      min-width: 140px;
+    }
+    .compare-table tr:hover td {
+      background: rgba(59,130,246,0.04);
+    }
+    .cell-match-5 { color: var(--match-5); font-weight: 700; }
+    .cell-match-4 { color: var(--match-4); font-weight: 700; }
+    .cell-match-3 { color: var(--match-3); font-weight: 700; }
+    .cell-match-2 { color: var(--match-2); font-weight: 700; }
+    .cell-match-1 { color: var(--match-1); font-weight: 700; }
+    .cell-yes { color: var(--success); }
+    .cell-no  { color: var(--danger); }
+
+    /* ── 雷达图容器 ── */
+    .radar-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .radar-container h3 {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    canvas { display: block; width: 100%; max-width: 500px; margin: 0 auto; }
+
+    /* ── 企业分布 ── */
+    .ent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .ent-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .ent-card h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    .ent-card .ent-type {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .ent-card .positions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ent-pos-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+    .ent-pos-item .pos-name { font-weight: 500; }
+    .ent-pos-item .pos-match { font-weight: 700; font-size: 0.75rem; }
+
+    /* ── 空状态 ── */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+
+    /* ── Chart containers ── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 860px) {
+      .charts-row { grid-template-columns: 1fr; }
+      .cards-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    .chart-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .chart-box h3 {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── 人脉进度卡片 ── */
+    .pipeline-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .pipeline-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg);
+      border-radius: 8px;
+      border-left: 3px solid var(--border);
+    }
+    .pipeline-step.done { border-left-color: var(--success); }
+    .pipeline-step.active { border-left-color: var(--accent); }
+    .pipeline-step.pending { border-left-color: var(--border); }
+    .step-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-icon.done { background: rgba(34,197,94,0.15); color: var(--success); }
+    .step-icon.active { background: rgba(59,130,246,0.15); color: var(--accent); }
+    .step-icon.pending { background: var(--border); color: var(--text-muted); }
+    .step-body { flex: 1; }
+    .step-body .step-title { font-weight: 600; font-size: 0.85rem; }
+    .step-body .step-desc { font-size: 0.75rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <!-- ====== Topbar ====== -->
+  <div class="topbar">
+    <h1>
+      <span class="status-dot online" title="在招岗位"></span>
+      天津岗位 · 抓手看板
+    </h1>
+    <div class="topbar-right">
+      <span class="update-badge" id="lastUpdate">数据更新: 2026-06-12</span>
+      <button class="theme-btn" onclick="toggleTheme()">☀️/🌙</button>
+    </div>
+  </div>
+
+  <!-- ====== Main Container ====== -->
+  <div class="container">
+    <!-- 总览卡片 -->
+    <div class="cards-row">
+      <div class="stat-card hl-green" onclick="switchTab('jobs')">
+        <div class="label">🎯 高匹配岗位</div>
+        <div class="value" id="cardHighMatch">3</div>
+        <div class="sub">匹配度 ≥ 4星</div>
+      </div>
+      <div class="stat-card hl-blue" onclick="switchTab('jobs')">
+        <div class="label">📋 在跟踪岗位</div>
+        <div class="value" id="cardTotal">6</div>
+        <div class="sub">城投体系 + 港口 + 其他</div>
+      </div>
+      <div class="stat-card hl-orange">
+        <div class="label">⚠️ 硬性门槛缺口</div>
+        <div class="value" id="cardBlockers">2</div>
+        <div class="sub">党员 / 法考证书</div>
+      </div>
+      <div class="stat-card hl-purple" onclick="switchTab('pipeline')">
+        <div class="label">🔗 内推进度</div>
+        <div class="value" id="cardPipeline">0/4</div>
+        <div class="sub">校友联络 → 内推投递</div>
+      </div>
+      <div class="stat-card hl-red">
+        <div class="label">⏰ 即将截止</div>
+        <div class="value" id="cardUrgent">1</div>
+        <div class="sub" id="cardUrgentDetail">综合办行政 6/12截止</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('jobs')">📋 岗位列表</button>
+      <button class="tab-btn" onclick="switchTab('compare')">📊 匹配对比</button>
+      <button class="tab-btn" onclick="switchTab('company')">🏢 企业分布</button>
+      <button class="tab-btn" onclick="switchTab('pipeline')">🔗 内推管线</button>
+    </div>
+
+    <!-- Tab 1: 岗位列表 -->
+    <div class="tab-content active" id="tab-jobs">
+      <div class="filters">
+        <select id="filterMatch" onchange="renderJobs()">
+          <option value="">全部匹配度</option>
+          <option value="5">⭐⭐⭐⭐⭐ 五星</option>
+          <option value="4">⭐⭐⭐⭐ 四星</option>
+          <option value="3">⭐⭐⭐ 三星</option>
+          <option value="2">⭐⭐ 二星</option>
+        </select>
+        <select id="filterEnt" onchange="renderJobs()">
+          <option value="">全部企业性质</option>
+          <option value="state-group">城投集团总部</option>
+          <option value="state-sub">城投全资子公司</option>
+          <option value="port">港口集团</option>
+        </select>
+        <select id="filterDept" onchange="renderJobs()">
+          <option value="">全部工作方向</option>
+          <option value="宣传舆情">宣传/舆情</option>
+          <option value="风险管控">风险/合规</option>
+          <option value="安全管理">安全/应急</option>
+          <option value="综合行政">综合行政</option>
+          <option value="法务">法务</option>
+        </select>
+        <select id="filterSalary" onchange="renderJobs()">
+          <option value="">全部薪资</option>
+          <option value="10-15">10-15万</option>
+          <option value="15-20">15-20万</option>
+          <option value="20+">20万+</option>
+        </select>
+        <button class="btn-reset" onclick="resetFilters()">↺ 重置筛选</button>
+      </div>
+
+      <div class="job-grid" id="jobGrid"></div>
+    </div>
+
+    <!-- Tab 2: 匹配对比 -->
+    <div class="tab-content" id="tab-compare">
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>🕸️ 能力雷达图 — 李昂 vs 各岗位要求</h3>
+          <canvas id="radarChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>📊 匹配度排行</h3>
+          <canvas id="matchBarChart"></canvas>
+        </div>
+      </div>
+      <div class="compare-table-wrap">
+        <table class="compare-table" id="compareTable"></table>
+      </div>
+    </div>
+
+    <!-- Tab 3: 企业分布 -->
+    <div class="tab-content" id="tab-company">
+      <div class="ent-grid" id="entGrid"></div>
+    </div>
+
+    <!-- Tab 4: 内推管线 -->
+    <div class="tab-content" id="tab-pipeline">
+      <div class="chart-box" style="margin-bottom:20px">
+        <h3>🔗 内推推进管线 — 清华校友渠道</h3>
+        <div class="pipeline-steps">
+          <div class="pipeline-step done">
+            <div class="step-icon done">✓</div>
+            <div class="step-body">
+              <div class="step-title">① 岗位锁定</div>
+              <div class="step-desc">6个目标岗位已完成JD分析 + 履历匹配（2026-06-11）</div>
+            </div>
+          </div>
+          <div class="pipeline-step done">
+            <div class="step-icon done">✓</div>
+            <div class="step-body">
+              <div class="step-title">② 话术准备</div>
+              <div class="step-desc">学长内推话术已梳理（四段式结构：破冰→关联→来意→降压）</div>
+            </div>
+          </div>
+          <div class="pipeline-step active">
+            <div class="step-icon active">3</div>
+            <div class="step-body">
+              <div class="step-title">③ 校友挖掘 ← 当前阶段</div>
+              <div class="step-desc">通过清华天津校友会 / 领英 / 脉脉 寻找城投体系内校友</div>
+            </div>
+          </div>
+          <div class="pipeline-step pending">
+            <div class="step-icon pending">4</div>
+            <div class="step-body">
+              <div class="step-title">④ 建立联系</div>
+              <div class="step-desc">微信/领英私信，先请教行业信息，再自然过渡到内推</div>
+            </div>
+          </div>
+          <div class="pipeline-step pending">
+            <div class="step-icon pending">5</div>
+            <div class="step-body">
+              <div class="step-title">⑤ 内推投递</div>
+              <div class="step-desc">通过校友内推渠道投递，跟进面试流程</div>
+            </div>
+          </div>
+          <div class="pipeline-step pending">
+            <div class="step-icon pending">6</div>
+            <div class="step-body">
+              <div class="step-title">⑥ 面试与入职</div>
+              <div class="step-desc">准备国企面试（结构化面试 + 专业能力展示）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>👥 校友挖掘渠道</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:8px">
+          <div style="background:var(--bg);padding:14px;border-radius:8px">
+            <div style="font-weight:700;margin-bottom:4px">🏛️ 清华天津校友会</div>
+            <div style="font-size:0.78rem;color:var(--text-muted)">最有效渠道，城投系大概率有清华校友<br>优先寻找市政投资公司任职者</div>
+          </div>
+          <div style="background:var(--bg);padding:14px;border-radius:8px">
+            <div style="font-weight:700;margin-bottom:4px">💼 领英 LinkedIn</div>
+            <div style="font-size:0.78rem;color:var(--text-muted)">搜索「天津城投」「清华」交叉筛选<br>查看工作经历确认是否在目标部门</div>
+          </div>
+          <div style="background:var(--bg);padding:14px;border-radius:8px">
+            <div style="font-weight:700;margin-bottom:4px">📱 脉脉</div>
+            <div style="font-size:0.78rem;color:var(--text-muted)">国企圈子活跃度不如领英<br>但可搜索天津国资体系人脉</div>
+          </div>
+          <div style="background:var(--bg);padding:14px;border-radius:8px">
+            <div style="font-weight:700;margin-bottom:4px">📚 清华就业指导中心</div>
+            <div style="font-size:0.78rem;color:var(--text-muted)">往届校友就职企业名录<br>可查询定向选调/国企就业去向</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 岗位数据
+    // ============================================================
+    const JOBS = [
+      {
+        id: 1,
+        title: '宣传管理岗（含舆情）',
+        company: '天津市政投资有限公司',
+        entType: 'state-sub',
+        entLabel: '城投全资子公司',
+        department: '综合办公室 / 党委宣传部',
+        direction: ['宣传', '舆情', '企业文化', '意识形态', '党务'],
+        salary: '12-18万/年',
+        salaryRange: '10-15',
+        match: 5,
+        matchNote: '舆情处置18起重大事件 + 清华风险传播理论 + 清朗行动/两会/冬奥会国家级专项',
+        requirements: [
+          { label: '舆情管理经验', met: true },
+          { label: '宣传/意识形态', met: true },
+          { label: '中共党员', met: false, blocker: true },
+          { label: '国企工作经验', met: false },
+          { label: '新闻传播/中文专业', met: false },
+        ],
+        hardBlockers: ['非中共党员（最大障碍）'],
+        advantages: ['字节舆情18起', '清华风险传播', '清朗/两会/冬奥会专项'],
+        status: '最近招聘: 2026年6月（内部招聘，已截止）',
+        deadline: null,
+        url: 'https://zhaopin.tj-chengtou.com/recruit#/portal_job_list?job_class=social',
+        strategy: '主攻方向，尽快解决入党问题，突出国家级专项经验弥补国企经验缺失'
+      },
+      {
+        id: 2,
+        title: '风险管控岗',
+        company: '低空经济公司',
+        entType: 'state-sub',
+        entLabel: '城投全资子公司',
+        department: '法律合规部 / 运营管理部',
+        direction: ['风控', '内控', '合规', '三重一大', '风险评估'],
+        salary: '15-20万/年',
+        salaryRange: '15-20',
+        match: 4,
+        matchNote: '字节风险识别-分级响应-复盘迭代闭环直接对口 + 京东商家违规分层模型',
+        requirements: [
+          { label: '风险防控体系', met: true },
+          { label: '内控流程设计', met: true },
+          { label: 'FRM/CIA证书', met: false, blocker: true },
+          { label: 'COSO/ERM理论', met: false },
+          { label: '企业管理/财务/法学专业', met: false },
+        ],
+        hardBlockers: ['无FRM/CIA证书', '不熟悉COSO/ERM框架'],
+        advantages: ['字节风险闭环', '京东违规分层', '两会/冬奥会/清朗专项'],
+        status: '最近招聘: 2026年5月（内部招聘，已截止）',
+        deadline: null,
+        url: 'https://zhaopin.tj-chengtou.com/recruit#/portal_job_list?job_class=social',
+        strategy: '短期考FRM不现实，面试前自学COSO/ERM核心框架，用实操经验对冲理论缺口'
+      },
+      {
+        id: 3,
+        title: '法律合规部副总经理',
+        company: '天津城投集团总部',
+        entType: 'state-group',
+        entLabel: '城投集团总部',
+        department: '法律合规部',
+        direction: ['法务', '合规', '风控', '风险评估'],
+        salary: '25-35万/年（估算）',
+        salaryRange: '20+',
+        match: 2,
+        matchNote: '法学专业+法考证书双硬伤，审核规则体系搭建经验仅部分相关',
+        requirements: [
+          { label: '法学专业', met: false, blocker: true },
+          { label: '法律职业资格证书', met: false, blocker: true },
+          { label: '5年+风控/法务经验', met: true },
+          { label: '基础设施/城开行业经验', met: false },
+        ],
+        hardBlockers: ['非法律专业', '无法考证书（硬伤）'],
+        advantages: ['审核规则体系搭建', '合规流程设计'],
+        status: '社会公开招聘（2024年1月，已截止）',
+        deadline: null,
+        url: null,
+        strategy: '除非获得法考证，否则不建议投入精力'
+      },
+      {
+        id: 4,
+        title: '安全管理岗（低空经济）',
+        company: '低空经济公司',
+        entType: 'state-sub',
+        entLabel: '城投全资子公司',
+        department: '运营管理部',
+        direction: ['安全生产', '应急管理', '飞行申报', '低空安全标准'],
+        salary: '12-18万/年（估算）',
+        salaryRange: '10-15',
+        match: 2,
+        matchNote: 'CAAC无人机执照硬门槛一票否决，安全预案经验相关但不够',
+        requirements: [
+          { label: 'CAAC无人机执照', met: false, blocker: true },
+          { label: '安全应急预案', met: true },
+          { label: '安全管理经验', met: true },
+          { label: '航空航天/安全工程专业', met: false },
+        ],
+        hardBlockers: ['无CAAC无人机执照（一票否决）'],
+        advantages: ['UBER安全事件30+起', '字节应急预案'],
+        status: '最近招聘: 2026年5月（社会公开招聘，已截止）',
+        deadline: null,
+        url: 'https://zhaopin.tj-chengtou.com/recruit#/portal_job_list?job_class=social',
+        strategy: '执照硬门槛，不建议。除非对低空经济赛道有强烈兴趣且愿意考证'
+      },
+      {
+        id: 5,
+        title: '综合办公室行政管理',
+        company: '汇融商业管理有限公司',
+        entType: 'state-sub',
+        entLabel: '城投体系子公司',
+        department: '综合办公室',
+        direction: ['党建', '信访舆情', '维稳', '档案管理', '后勤'],
+        salary: '10-15万/年（估算）',
+        salaryRange: '10-15',
+        match: 4,
+        matchNote: '舆情维稳直接对口（字节舆情18起+举报体系重构），但党员+国企双硬门槛',
+        requirements: [
+          { label: '舆情/维稳经验', met: true },
+          { label: '文件档案/会议组织', met: true },
+          { label: '中共党员+5年党龄', met: false, blocker: true },
+          { label: '3年以上国企经历', met: false, blocker: true },
+        ],
+        hardBlockers: ['非中共党员', '无国企工作经历'],
+        advantages: ['字节舆情18起', '举报体系重构', '跨部门项目协调'],
+        status: '社会招聘 2人 ⚠️ 2026年6月12日截止！',
+        deadline: '2026-06-12',
+        url: 'https://zhaopin.tj-chengtou.com/recruit#/portal_job_list?job_class=social',
+        strategy: '6月12日截止！若有意向需立即投递，但党员+国企双门槛基本无法突破'
+      },
+      {
+        id: 6,
+        title: '内保管理岗（高级主管级）',
+        company: '天津城投集团总部',
+        entType: 'state-group',
+        entLabel: '城投集团总部',
+        department: '安全质量部',
+        direction: ['内保', '应急', '消防', '防汛', '安全培训'],
+        salary: '18-25万/年（估算）',
+        salaryRange: '15-20',
+        match: 3,
+        matchNote: 'UBER安全事件+字节应急预案核心能力匹配，但10年经验门槛太高',
+        requirements: [
+          { label: '内保/安全管理', met: true },
+          { label: '应急预案编制', met: true },
+          { label: '10年以上经验', met: false, blocker: true },
+          { label: '工程/安全工程专业', met: false },
+          { label: '高级工程师优先', met: false },
+        ],
+        hardBlockers: ['10年经验门槛太高', '专业不对口'],
+        advantages: ['UBER安全事件30+起', '字节应急预案+培训演练'],
+        status: '2023年内部招聘（已截止）',
+        deadline: null,
+        url: null,
+        strategy: '经验年限硬伤，关注同类初级岗位开放'
+      }
+    ];
+
+    // ============================================================
+    // 企业数据
+    // ============================================================
+    const ENTERPRISES = [
+      {
+        name: '天津城投集团总部',
+        type: '市属国有独资 · 集团总部',
+        color: 'var(--ent-state)',
+        positions: [3, 6],
+        desc: '天津市城市基础设施投资建设运营主体，12个职能部门，资产规模超8000亿'
+      },
+      {
+        name: '天津市政投资有限公司',
+        type: '城投全资子公司',
+        color: 'var(--ent-state-sub)',
+        positions: [1],
+        desc: '城投集团城市投资板块核心子公司'
+      },
+      {
+        name: '低空经济公司',
+        type: '城投全资子公司',
+        color: 'var(--ent-state-sub)',
+        positions: [2, 4],
+        desc: '城投集团低空经济新赛道布局'
+      },
+      {
+        name: '汇融商业管理有限公司',
+        type: '城投体系子公司',
+        color: 'var(--ent-state-sub)',
+        positions: [5],
+        desc: '城投体系商业运营管理平台'
+      }
+    ];
+
+    // ============================================================
+    // 工具函数
+    // ============================================================
+    function el(id) { return document.getElementById(id); }
+
+    function matchStars(n) {
+      let html = '<div class="match-stars">';
+      for (let i = 1; i <= 5; i++) {
+        html += `<span class="star ${i <= n ? 'on' : 'off'}">★</span>`;
+      }
+      html += `<span class="match-label m${n}">${n}星</span></div>`;
+      return html;
+    }
+
+    function renderTags(job) {
+      let tags = '';
+      tags += `<span class="tag tag-ent-${job.entType}">${job.entLabel}</span>`;
+      tags += `<span class="tag tag-dept">${job.department}</span>`;
+      tags += `<span class="tag tag-salary">${job.salary}</span>`;
+      return tags;
+    }
+
+    function renderRequirements(job) {
+      return job.requirements.map(r => {
+        let cls = r.met ? 'highlight-yes' : (r.blocker ? 'highlight-no' : 'highlight-warn');
+        let icon = r.met ? '✅' : (r.blocker ? '❌' : '⚠️');
+        return `<span class="${cls}">${icon} ${r.label}</span>`;
+      }).join(' ');
+    }
+
+    function renderDirections(job) {
+      return job.direction.map(d => `<span class="direction-chip">${d}</span>`).join('');
+    }
+
+    // ============================================================
+    // 渲染岗位列表
+    // ============================================================
+    function renderJobs() {
+      const matchFilter = el('filterMatch')?.value || '';
+      const entFilter = el('filterEnt')?.value || '';
+      const deptFilter = el('filterDept')?.value || '';
+      const salaryFilter = el('filterSalary')?.value || '';
+
+      let filtered = JOBS.filter(j => {
+        if (matchFilter && j.match !== parseInt(matchFilter)) return false;
+        if (entFilter && j.entType !== entFilter) return false;
+        if (deptFilter && !j.direction.some(d => d.includes(deptFilter))) return false;
+        if (salaryFilter && j.salaryRange !== salaryFilter) return false;
+        return true;
+      });
+
+      const grid = el('jobGrid');
+      if (!grid) return;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="empty"><div class="icon">📭</div><p>没有匹配的岗位</p><p style="font-size:0.8rem;">尝试调整筛选条件</p></div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(j => `
+        <div class="job-card match-${j.match}">
+          <div class="job-header">
+            <div>
+              <div class="job-title">${j.title}</div>
+              <div class="job-company">${j.company}</div>
+            </div>
+            ${matchStars(j.match)}
+          </div>
+
+          <div class="job-tags">${renderTags(j)}</div>
+
+          <div class="job-detail-row">${renderRequirements(j)}</div>
+
+          <div style="font-size:0.8rem;color:var(--text-muted);line-height:1.5">
+            <strong style="color:var(--success)">✅ 优势：</strong>${j.advantages.join(' · ')}
+          </div>
+          ${j.hardBlockers.length > 0 ? `
+          <div style="font-size:0.8rem;color:var(--danger);line-height:1.5">
+            <strong>❌ 硬伤：</strong>${j.hardBlockers.join(' · ')}
+          </div>` : ''}
+
+          <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.5">
+            <strong>📝 匹配说明：</strong>${j.matchNote}
+          </div>
+
+          <div class="direction-bar">${renderDirections(j)}</div>
+
+          <div style="font-size:0.78rem;color:var(--info);line-height:1.5">
+            <strong>💡 策略：</strong>${j.strategy}
+          </div>
+
+          <div class="job-footer">
+            <span>${j.status}</span>
+            ${j.url ? `<span class="source"><a href="${j.url}" target="_blank">社招门户 →</a></span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function resetFilters() {
+      ['filterMatch','filterEnt','filterDept','filterSalary'].forEach(id => {
+        const sel = el(id);
+        if (sel) sel.value = '';
+      });
+      renderJobs();
+    }
+
+    // ============================================================
+    // 匹配对比 Tab
+    // ============================================================
+    function renderCompare() {
+      // 表格
+      const table = el('compareTable');
+      if (table) {
+        const rows = [
+          { label: '匹配度', key: 'match', type: 'star' },
+          { label: '企业性质', key: 'entLabel', type: 'text' },
+          { label: '薪资范围', key: 'salary', type: 'text' },
+          { label: '舆情/风控经验', key: null, type: 'custom', fn: j => j.requirements[0]?.met ? '✅' : '❌' },
+          { label: '专业对口', key: null, type: 'custom', fn: j => j.requirements.some(r => r.label.includes('专业') && r.met) ? '✅' : '⚠️' },
+          { label: '证书要求', key: null, type: 'custom', fn: j => j.requirements.some(r => r.label.includes('证书') || r.label.includes('执照')) ? (j.requirements.some(r => (r.label.includes('证书') || r.label.includes('执照')) && r.met) ? '✅ 已持' : '❌ 缺失') : '—' },
+          { label: '党员要求', key: null, type: 'custom', fn: j => j.requirements.some(r => r.label.includes('党员')) ? (j.requirements.some(r => r.label.includes('党员') && r.met) ? '✅' : '❌') : '—' },
+          { label: '国企经验', key: null, type: 'custom', fn: j => j.requirements.some(r => r.label.includes('国企')) ? (j.requirements.some(r => r.label.includes('国企') && r.met) ? '✅' : '❌') : '—' },
+          { label: '经验年限', key: null, type: 'custom', fn: j => j.requirements.some(r => r.label.includes('年')) ? (j.requirements.some(r => r.label.includes('年') && r.met) ? '✅' : '❌') : '—' },
+        ];
+
+        let html = '<thead><tr><th>维度</th>' + JOBS.map(j => `<th>${j.title.substring(0,8)}...</th>`).join('') + '</tr></thead><tbody>';
+        rows.forEach(row => {
+          html += '<tr>';
+          html += `<td>${row.label}</td>`;
+          JOBS.forEach(j => {
+            if (row.type === 'star') {
+              html += `<td class="cell-match-${j.match}">${'★'.repeat(j.match)}${'☆'.repeat(5-j.match)}</td>`;
+            } else if (row.type === 'text') {
+              html += `<td style="font-size:0.78rem">${j[row.key]}</td>`;
+            } else if (row.type === 'custom' && row.fn) {
+              const val = row.fn(j);
+              const cls = val.includes('✅') ? 'cell-yes' : (val.includes('❌') ? 'cell-no' : '');
+              html += `<td class="${cls}">${val}</td>`;
+            }
+          });
+          html += '</tr>';
+        });
+        html += '</tbody>';
+        table.innerHTML = html;
+      }
+
+      // 雷达图
+      drawRadar();
+      // 柱状图
+      drawMatchBar();
+    }
+
+    function drawRadar() {
+      const canvas = el('radarChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const size = 380;
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      ctx.scale(dpr, dpr);
+
+      const cx = size / 2, cy = size / 2, maxR = 140;
+      const dimensions = ['舆情/风控', '宣传/意识', '安全/应急', '合规/内控', '行政/党建', '专业对口'];
+      const numDim = dimensions.length;
+      const angleStep = (Math.PI * 2) / numDim;
+
+      // 能力值 (0-5)
+      const myValues = [5, 4.5, 4, 3.5, 2, 2.5]; // 李昂自评
+      const jobValues = [5, 5, 3, 4, 4, 3];     // 宣传管理岗要求（最佳匹配）
+
+      // 背景网格
+      for (let level = 1; level <= 5; level++) {
+        const r = (maxR / 5) * level;
+        ctx.beginPath();
+        for (let i = 0; i <= numDim; i++) {
+          const angle = angleStep * i - Math.PI / 2;
+          const x = cx + r * Math.cos(angle);
+          const y = cy + r * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = level === 5 ? '#334155' : '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // 轴线
+      for (let i = 0; i < numDim; i++) {
+        const angle = angleStep * i - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + maxR * Math.cos(angle), cy + maxR * Math.sin(angle));
+        ctx.strokeStyle = '#1e293b';
+        ctx.stroke();
+
+        // 标签
+        const labelR = maxR + 22;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(dimensions[i], cx + labelR * Math.cos(angle), cy + labelR * Math.sin(angle));
+      }
+
+      // 岗位要求（虚线）
+      drawRadarPolygon(ctx, cx, cy, jobValues, maxR, angleStep, numDim, '#3b82f6', 0.15, true);
+
+      // 李昂能力（实线填充）
+      drawRadarPolygon(ctx, cx, cy, myValues, maxR, angleStep, numDim, '#22c55e', 0.2, false);
+
+      // 图例
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(cx - 100, cy + maxR + 30, 12, 3);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('李昂能力', cx - 84, cy + maxR + 33);
+
+      ctx.fillStyle = '#3b82f6';
+      ctx.fillRect(cx + 10, cy + maxR + 30, 12, 3);
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx + 10, cy + maxR + 31.5);
+      ctx.lineTo(cx + 28, cy + maxR + 31.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('目标岗位要求', cx + 32, cy + maxR + 33);
+    }
+
+    function drawRadarPolygon(ctx, cx, cy, values, maxR, angleStep, numDim, color, alpha, dashed) {
+      ctx.beginPath();
+      for (let i = 0; i <= numDim; i++) {
+        const idx = i % numDim;
+        const v = values[idx] / 5;
+        const r = v * maxR;
+        const angle = angleStep * idx - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      if (dashed) ctx.setLineDash([6, 4]);
+      else ctx.setLineDash([]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.fillStyle = color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+      if (color.startsWith('#')) {
+        ctx.fillStyle = color + Math.round(alpha * 255).toString(16).padStart(2, '0');
+      }
+      ctx.fill();
+      ctx.setLineDash([]);
+
+      // 顶点圆点
+      for (let i = 0; i < numDim; i++) {
+        const v = values[i] / 5;
+        const r = v * maxR;
+        const angle = angleStep * i - Math.PI / 2;
+        ctx.beginPath();
+        ctx.arc(cx + r * Math.cos(angle), cy + r * Math.sin(angle), 4, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+    }
+
+    function drawMatchBar() {
+      const canvas = el('matchBarChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const W = 400, H = 260;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.scale(dpr, dpr);
+
+      const sorted = [...JOBS].sort((a, b) => b.match - a.match);
+      const colors = { 5: '#22c55e', 4: '#3b82f6', 3: '#f59e0b', 2: '#f97316', 1: '#ef4444' };
+      const barH = 30, gap = 12, leftPad = 130;
+      const maxPct = 5; // 满分5星
+
+      sorted.forEach((j, i) => {
+        const y = 20 + i * (barH + gap);
+        const bw = (j.match / maxPct) * (W - leftPad - 60);
+
+        // 标签
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(j.title.substring(0, 8), leftPad - 8, y + barH / 2 + 4);
+
+        // 背景条
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.roundRect(leftPad, y, W - leftPad - 60, barH, 6);
+        ctx.fill();
+
+        // 前景条
+        const gradient = ctx.createLinearGradient(leftPad, y, leftPad + bw, y);
+        const color = colors[j.match] || '#3b82f6';
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, color + '88');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(leftPad, y, bw, barH, 6);
+        ctx.fill();
+
+        // 数值
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('★'.repeat(j.match) + '☆'.repeat(5 - j.match), leftPad + bw + 8, y + barH / 2 + 4);
+      });
+    }
+
+    // ============================================================
+    // 企业分布 Tab
+    // ============================================================
+    function renderEnterprises() {
+      const grid = el('entGrid');
+      if (!grid) return;
+
+      grid.innerHTML = ENTERPRISES.map(ent => {
+        const posList = ent.positions.map(pid => JOBS.find(j => j.id === pid)).filter(Boolean);
+        return `
+          <div class="ent-card">
+            <h3>${ent.name}</h3>
+            <div class="ent-type">${ent.type}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px">${ent.desc}</div>
+            <div class="positions">
+              ${posList.map(p => `
+                <div class="ent-pos-item">
+                  <span class="pos-name">${p.title}</span>
+                  <span class="pos-match" style="color:var(--match-${p.match})">${'★'.repeat(p.match)}${'☆'.repeat(5-p.match)} ${p.match}星</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============================================================
+    // Tab 切换
+    // ============================================================
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      const btn = document.querySelector(`[onclick="switchTab('${name}')"]`);
+      if (btn) btn.classList.add('active');
+      const content = el('tab-' + name);
+      if (content) content.classList.add('active');
+
+      if (name === 'jobs') renderJobs();
+      if (name === 'compare') renderCompare();
+      if (name === 'company') renderEnterprises();
+      if (name === 'pipeline') {} // 管线是静态内容
+    }
+
+    // ============================================================
+    // 主题切换
+    // ============================================================
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('job-tracker-theme', html.dataset.theme);
+      // 重绘图表
+      const activeTab = document.querySelector('.tab-content.active');
+      if (activeTab && activeTab.id === 'tab-compare') {
+        setTimeout(renderCompare, 50);
+      }
+    }
+
+    // ============================================================
+    // 初始化
+    // ============================================================
+    (function init() {
+      const saved = localStorage.getItem('job-tracker-theme');
+      if (saved) document.documentElement.dataset.theme = saved;
+
+      renderJobs();
+      // 延迟设置时间为今天
+      el('lastUpdate').textContent = '数据更新: 2026-06-12';
+    })();
+  </script>
+</body>
+</html>

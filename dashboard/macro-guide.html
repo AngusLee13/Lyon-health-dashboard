@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MacroDroid 自动采集指南</title>
+<style>
+body { font-family: -apple-system, system-ui, sans-serif; max-width: 680px; margin: 0 auto; padding: 20px; background: #0f0f0f; color: #e0e0e0; line-height: 1.7; }
+h1 { font-size: 22px; color: #fff; border-bottom: 2px solid #6366f1; padding-bottom: 10px; }
+h2 { font-size: 17px; color: #a5b4fc; margin-top: 28px; }
+.step { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; margin: 14px 0; }
+.step-num { display: inline-block; background: #6366f1; color: #fff; width: 26px; height: 26px; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 700; font-size: 14px; margin-right: 8px; }
+code { background: #222; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #fbbf24; }
+pre { background: #111; padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; border: 1px solid #2a2a2a; }
+.note { background: #1a1a0a; border-left: 3px solid #fbbf24; padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px; }
+.warn { background: #1a0a0a; border-left: 3px solid #f87171; }
+a { color: #818cf8; }
+</style>
+</head>
+<body>
+
+<h1>📱 MacroDroid 自动采集指南</h1>
+<p>让 Android 手机定时读取 Health Connect 数据，自动发飞书消息给 Bot。</p>
+
+<h2>一、安装</h2>
+
+<div class="step">
+  <span class="step-num">1</span> Google Play 搜索 <strong>MacroDroid</strong>（免费版即可）
+</div>
+<div class="step">
+  <span class="step-num">2</span> 打开后授予通知、后台运行权限
+</div>
+
+<h2>二、步数自动采集</h2>
+
+<div class="step">
+  <span class="step-num">1</span> 创建宏 → <strong>触发器：定时</strong> → 每天 20:00
+</div>
+<div class="step">
+  <span class="step-num">2</span> <strong>动作：发送 HTTP 请求</strong>
+  <pre>方法: POST
+URL: http://192.168.31.126:3000/api/health/sync
+请求头:
+  Content-Type: application/json
+  Authorization: Bearer health-sync-secret
+
+请求体:
+{"date":"[lv=CurrentDate yyyy-MM-dd]","steps":[lv=StepCountToday]}</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span> 保存，勾选"启用"
+</div>
+
+<div class="warn note">
+  <strong>注意：</strong>HTTP 请求只在手机连上家里 WiFi 时才能到达 PC。外出时可手动飞书发「步数8500」。
+</div>
+
+<h2>三、替代方案：飞书快捷发送</h2>
+<p>如果不想折腾 MacroDroid，最简单的方案是用<strong>飞书收藏的快捷短语</strong>：飞书 → 我 → 快捷回复 → 添加「步数 」「体重 」模板，每天打字补数字就行。</p>
+
+<h2>四、进阶：Health Connect 全自动</h2>
+<p>如果你的 OPPO Watch X2 已同步数据到 Health Connect，可以用 <strong>Tasker</strong>（付费）+ <strong>AutoNotification</strong> 插件读取 Health Connect 数据并 HTTP POST。这是目前 Android 端自动化能力最强的方案。</p>
+
+<h2>五、检验</h2>
+<p>设置完成后，晚上 8 点查看 Bot 是否收到步数数据。在飞书问 Bot「今天步数多少」验证。</p>
+
+<hr style="border-color:#2a2a2a;margin:24px 0">
+
+<h2>📋 方案对比</h2>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+<tr style="border-bottom:1px solid #2a2a2a"><th style="text-align:left;padding:8px">方案</th><th style="text-align:left;padding:8px">门槛</th><th style="text-align:left;padding:8px">自动化</th><th style="text-align:left;padding:8px">可靠性</th></tr>
+<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:8px">手动飞书消息</td><td style="padding:8px">最低</td><td style="padding:8px">无</td><td style="padding:8px">✅ PC关机也不丢</td></tr>
+<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:8px">健康面板网页</td><td style="padding:8px">低</td><td style="padding:8px">半自动</td><td style="padding:8px">✅ 手机局域网即开即用</td></tr>
+<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:8px">MacroDroid</td><td style="padding:8px">中</td><td style="padding:8px">高</td><td style="padding:8px">⚠️ 需连家里WiFi</td></tr>
+<tr><td style="padding:8px">MacroDroid + 树莓派</td><td style="padding:8px">较高</td><td style="padding:8px">全自动</td><td style="padding:8px">✅ 24/7 可靠</td></tr>
+</table>
+
+</body>
+</html>

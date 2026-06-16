@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天津城投 · 舆情监测</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      --info: #06b6d4;
+      --positive: #22c55e;
+      --negative: #ef4444;
+      --neutral: #64748b;
+      --risk-I: #dc2626;
+      --risk-II: #f97316;
+      --risk-III: #eab308;
+      --risk-IV: #3b82f6;
+      --radius: 12px;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .topbar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    .topbar h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .status-dot.online { background: var(--success); }
+    .status-dot.offline { background: var(--danger); animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.875rem;
+    }
+    .theme-btn {
+      background: var(--border);
+      border: none;
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .theme-btn:hover { opacity: 0.8; }
+    .refresh-badge {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .stat-card .label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .stat-card .sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .stat-card.highlight-red { border-left: 4px solid var(--risk-I); }
+    .stat-card.highlight-orange { border-left: 4px solid var(--risk-II); }
+    .stat-card.highlight-yellow { border-left: 4px solid var(--risk-III); }
+    .stat-card.highlight-green { border-left: 4px solid var(--success); }
+
+    .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .filters select, .filters input {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+    .filters select { cursor: pointer; }
+    .filters input { min-width: 200px; }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+    .btn-danger { background: var(--danger); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .article-list { display: flex; flex-direction: column; gap: 10px; }
+    .article-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      border-left: 4px solid var(--neutral);
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+    .article-card:hover { background: #1a2740; }
+    .article-card.sentiment-positive { border-left-color: var(--positive); }
+    .article-card.sentiment-negative { border-left-color: var(--negative); }
+    .article-card.sentiment-neutral { border-left-color: var(--neutral); }
+    .article-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .article-title a { color: var(--text); text-decoration: none; }
+    .article-title a:hover { color: var(--accent); }
+    .article-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-I { background: var(--risk-I); color: #fff; }
+    .badge-II { background: var(--risk-II); color: #fff; }
+    .badge-III { background: var(--risk-III); color: #000; }
+    .badge-IV { background: var(--risk-IV); color: #fff; }
+    .badge-none { background: var(--neutral); color: #fff; }
+    .badge-positive { background: var(--positive); color: #fff; }
+    .badge-negative { background: var(--negative); color: #fff; }
+    .badge-neutral { background: var(--neutral); color: #fff; }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .pagination button {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination .page-info { font-size: 0.85rem; color: var(--text-muted); }
+
+    .chart-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .chart-container h3 {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    canvas { display: block; width: 100%; max-height: 300px; }
+
+    .alert-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .alert-item.unacknowledged { border-left: 4px solid var(--danger); }
+    .alert-item.acknowledged { opacity: 0.6; }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 768px) {
+      .cards-row { grid-template-columns: repeat(2, 1fr); }
+      .topbar { padding: 12px 16px; }
+      .topbar h1 { font-size: 1rem; }
+      .filters { flex-direction: column; }
+      .filters select, .filters input { width: 100%; }
+      .stat-card .value { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>
+      <span class="status-dot online" id="statusDot" title="系统正常"></span>
+      天津城投 · 舆情监测
+    </h1>
+    <div class="topbar-right">
+      <span class="refresh-badge" id="lastRefresh">--</span>
+      <button class="btn btn-sm btn-outline" onclick="refreshAll()" title="手动刷新数据">🔄 刷新</button>
+      <button class="btn btn-sm" onclick="triggerCollect()" title="手动触发一次全量采集">▶ 采集</button>
+      <button class="theme-btn" onclick="toggleTheme()">☀️/🌙</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="cards-row">
+      <div class="stat-card highlight-green" onclick="switchTab('articles')">
+        <div class="label">📰 今日采集</div>
+        <div class="value" id="cardTodayCollected">--</div>
+        <div class="sub">文章总数</div>
+      </div>
+      <div class="stat-card highlight-red" onclick="switchTab('articles'); setSentimentFilter('negative')">
+        <div class="label">⚠️ 负面占比</div>
+        <div class="value" id="cardNegativePct">--</div>
+        <div class="sub">条负面 / 总计</div>
+      </div>
+      <div class="stat-card highlight-orange" onclick="switchTab('alerts')">
+        <div class="label">🚨 高危预警</div>
+        <div class="value" id="cardHighRisk">--</div>
+        <div class="sub">Ⅰ - Ⅱ 级风险</div>
+      </div>
+      <div class="stat-card highlight-yellow" onclick="switchTab('alerts')">
+        <div class="label">📬 待确认预警</div>
+        <div class="value" id="cardPendingAlerts">--</div>
+        <div class="sub">未读</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">🕐 最新采集</div>
+        <div class="value" id="cardLastCollect" style="font-size:1rem;">--</div>
+        <div class="sub">最近采集时间</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('articles')">📋 文章列表</button>
+      <button class="tab-btn" onclick="switchTab('alerts')">🚨 风险预警 <span id="alertBadge" style="display:none;background:var(--danger);color:#fff;border-radius:999px;padding:0 6px;font-size:0.7rem;"></span></button>
+      <button class="tab-btn" onclick="switchTab('trends')">📈 趋势图表</button>
+      <button class="tab-btn" onclick="switchTab('stats')">📊 统计分析</button>
+    </div>
+
+    <div class="tab-content active" id="tab-articles">
+      <div class="filters">
+        <select id="filterSentiment" onchange="loadArticles(1)">
+          <option value="">全部情感</option>
+          <option value="positive">🟢 正面</option>
+          <option value="negative">🔴 负面</option>
+          <option value="neutral">⚪ 中性</option>
+        </select>
+        <select id="filterRisk" onchange="loadArticles(1)">
+          <option value="">全部风险</option>
+          <option value="I">🔴 Ⅰ级</option>
+          <option value="II">🟠 Ⅱ级</option>
+          <option value="III">🟡 Ⅲ级</option>
+          <option value="IV">🔵 Ⅳ级</option>
+        </select>
+        <input type="text" id="filterKeyword" placeholder="搜索关键词..." onkeydown="if(event.key==='Enter')loadArticles(1)">
+        <button class="btn" onclick="loadArticles(1)">🔍 搜索</button>
+        <select id="filterDays" onchange="loadArticles(1)">
+          <option value="1">今天</option>
+          <option value="3">近3天</option>
+          <option value="7" selected>近7天</option>
+          <option value="30">近30天</option>
+        </select>
+      </div>
+      <div class="article-list" id="articleList"></div>
+      <div class="pagination" id="articlePagination"></div>
+    </div>
+
+    <div class="tab-content" id="tab-alerts">
+      <div class="filters">
+        <select id="alertFilterAck" onchange="loadAlerts()">
+          <option value="">全部</option>
+          <option value="false" selected>未确认</option>
+          <option value="true">已确认</option>
+        </select>
+        <button class="btn" onclick="loadAlerts()">🔄 刷新预警列表</button>
+      </div>
+      <div id="alertList"></div>
+      <div class="pagination" id="alertPagination"></div>
+    </div>
+
+    <div class="tab-content" id="tab-trends">
+      <div class="filters">
+        <select id="trendDays" onchange="loadTrends()">
+          <option value="7">近7天</option>
+          <option value="14">近14天</option>
+          <option value="30" selected>近30天</option>
+          <option value="60">近60天</option>
+        </select>
+      </div>
+      <div class="chart-container">
+        <h3>📈 舆情趋势（总/正面/负面）</h3>
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>🔥 24小时热度分布</h3>
+        <canvas id="heatChart"></canvas>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-stats">
+      <div class="filters">
+        <select id="statsDays" onchange="loadStats()">
+          <option value="7" selected>近7天</option>
+          <option value="30">近30天</option>
+        </select>
+      </div>
+      <div class="chart-container">
+        <h3>📊 情感分布</h3>
+        <canvas id="sentimentPie"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>🎯 风险等级分布</h3>
+        <canvas id="riskBar"></canvas>
+      </div>
+      <div class="chart-container" id="topKeywordsContainer">
+        <h3>🏷️ 热词 TOP 15</h3>
+        <div id="keywordCloud" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 0;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/sentinel';
+    let currentTab = 'articles';
+    let articlePage = 1, alertPage = 1;
+    let autoRefreshTimer = null;
+
+    function fmtTime(ts) {
+      if (!ts) return '--';
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function fmtDate(d) { return d ? d.substring(5) : '--'; }
+    function el(id) { return document.getElementById(id); }
+
+    async function refreshAll() {
+      await Promise.all([loadStatus(), currentTab === 'articles' ? loadArticles() : null,
+        currentTab === 'alerts' ? loadAlerts() : null, currentTab === 'trends' ? loadTrends() : null,
+        currentTab === 'stats' ? loadStats() : null]);
+      el('lastRefresh').textContent = '刷新于 ' + new Date().toLocaleTimeString('zh-CN');
+    }
+
+    async function loadStatus() {
+      try {
+        const r = await fetch(API + '/status');
+        const s = await r.json();
+        el('cardTodayCollected').textContent = s.todayCollected || '0';
+        el('cardPendingAlerts').textContent = s.unacknowledgedAlerts || '0';
+        el('cardLastCollect').textContent = fmtTime(s.lastCollectionTime);
+        el('statusDot').className = 'status-dot ' + (s.aiAvailable ? 'online' : 'offline');
+
+        const badge = el('alertBadge');
+        if (s.unacknowledgedAlerts > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = s.unacknowledgedAlerts;
+        } else { badge.style.display = 'none'; }
+
+        const sr = await fetch(API + '/stats?days=1');
+        const st = await sr.json();
+        const neg = st.sentimentBreakdown?.negative || 0;
+        const total = st.totalArticles || 1;
+        el('cardNegativePct').textContent = ((neg / total) * 100).toFixed(1) + '%';
+        el('cardNegativePct').parentElement.querySelector('.sub').textContent = neg + '条 / ' + total + '条';
+        el('cardHighRisk').textContent = (st.riskBreakdown?.I || 0) + (st.riskBreakdown?.II || 0);
+      } catch (e) { console.error('加载状态失败:', e); }
+    }
+
+    async function loadArticles(page = 1) {
+      articlePage = page;
+      const params = new URLSearchParams({
+        dateFrom: daysAgo(el('filterDays').value || '7'),
+        dateTo: today(),
+        page: String(page),
+        pageSize: '20',
+      });
+      const sentiment = el('filterSentiment').value;
+      const riskLevel = el('filterRisk').value;
+      const keyword = el('filterKeyword').value.trim();
+      if (sentiment) params.set('sentiment', sentiment);
+      if (riskLevel) params.set('riskLevel', riskLevel);
+      if (keyword) params.set('keyword', keyword);
+
+      try {
+        const r = await fetch(API + '/articles?' + params.toString());
+        const data = await r.json();
+        const list = el('articleList');
+        if (!data.items || data.items.length === 0) {
+          list.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无舆情数据</p><p style="font-size:0.8rem;">点击上方「采集」按钮开始首次搜索</p></div>';
+          el('articlePagination').innerHTML = '';
+          return;
+        }
+        list.innerHTML = data.items.map(a => `
+          <div class="article-card sentiment-${a.sentiment}" onclick="window.open('${escHtml(a.url)}', '_blank')">
+            <div class="article-title">
+              ${a.title || '(无标题)'}
+              <span class="badge badge-${a.riskLevel}">${a.riskLevel}级</span>
+              <span class="badge badge-${a.sentiment}">${a.sentiment === 'positive' ? '正面' : a.sentiment === 'negative' ? '负面' : '中性'}</span>
+              ${a.heatScore >= 50 ? `<span style="font-size:0.7rem;">🔥 ${a.heatScore}</span>` : ''}
+            </div>
+            <div class="article-meta">
+              <span>📅 ${fmtDate(a.publishDate)}</span>
+              <span>📰 ${a.source}</span>
+              <span>🤖 置信度 ${(a.confidence * 100).toFixed(0)}%</span>
+              ${a.riskOverride ? `<span style="color:var(--warning)" title="${escHtml(a.riskOverride.reason)}">⚠ 规则升级: ${a.riskOverride.originalLevel}→${a.riskOverride.newLevel}</span>` : ''}
+            </div>
+            ${a.summary ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">📝 ${escHtml(a.summary)}</div>` : ''}
+            ${a.keywords && a.keywords.length > 0 ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
+              ${a.keywords.map(k => `<span style="background:var(--border);padding:2px 6px;border-radius:4px;font-size:0.7rem;">#${escHtml(k)}</span>`).join('')}
+            </div>` : ''}
+          </div>
+        `).join('');
+
+        el('articlePagination').innerHTML = `
+          <button ${data.page <= 1 ? 'disabled' : ''} onclick="loadArticles(${data.page - 1})">← 上一页</button>
+          <span class="page-info">第 ${data.page} / ${data.totalPages} 页（共 ${data.total} 条）</span>
+          <button ${data.page >= data.totalPages ? 'disabled' : ''} onclick="loadArticles(${data.page + 1})">下一页 →</button>
+        `;
+      } catch (e) {
+        el('articleList').innerHTML = '<div class="empty"><p>⚠ 加载失败，请检查服务状态</p></div>';
+        console.error(e);
+      }
+    }
+
+    function setSentimentFilter(v) {
+      el('filterSentiment').value = v;
+      switchTab('articles');
+      loadArticles(1);
+    }
+
+    async function loadAlerts(page = 1) {
+      alertPage = page;
+      const params = new URLSearchParams({
+        page: String(page), pageSize: '20',
+        acknowledged: el('alertFilterAck').value,
+      });
+      try {
+        const r = await fetch(API + '/alerts?' + params.toString());
+        const data = await r.json();
+        const list = el('alertList');
+        if (!data.items || data.items.length === 0) {
+          list.innerHTML = '<div class="empty"><div class="icon">✅</div><p>暂无预警记录</p></div>';
+          el('alertPagination').innerHTML = '';
+          return;
+        }
+        list.innerHTML = data.items.map(a => `
+          <div class="alert-item ${a.acknowledged ? 'acknowledged' : 'unacknowledged'}">
+            <div style="flex:1;min-width:200px;">
+              <div style="font-weight:600;">${escHtml(a.title)}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);">
+                <span class="badge badge-${a.riskLevel}">${a.riskLevel}级</span>
+                ${a.alertLevel === 'critical' ? '🔴 严重' : a.alertLevel === 'warning' ? '🟡 警告' : 'ℹ️ 提示'}
+                · ${fmtTime(a.sentAt)}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              ${!a.acknowledged ? `<button class="btn btn-sm" onclick="ackAlert('${a.id}')">✔ 确认</button>` : '<span style="font-size:0.8rem;color:var(--text-muted);">已处理</span>'}
+            </div>
+          </div>
+        `).join('');
+
+        el('alertPagination').innerHTML = `
+          <button ${data.page <= 1 ? 'disabled' : ''} onclick="loadAlerts(${data.page - 1})">← 上一页</button>
+          <span class="page-info">第 ${data.page} / ${data.totalPages} 页</span>
+          <button ${data.page >= data.totalPages ? 'disabled' : ''} onclick="loadAlerts(${data.page + 1})">下一页 →</button>
+        `;
+      } catch (e) {
+        el('alertList').innerHTML = '<div class="empty">⚠ 加载失败</div>';
+        console.error(e);
+      }
+    }
+
+    async function ackAlert(id) {
+      try {
+        await fetch(API + '/alerts/' + id + '/ack', { method: 'POST' });
+        loadAlerts(alertPage);
+        loadStatus();
+      } catch (e) { alert('确认失败: ' + e.message); }
+    }
+
+    async function loadTrends() {
+      const days = el('trendDays').value || '30';
+      try {
+        const [statsR, trendsR] = await Promise.all([
+          fetch(API + '/stats?days=' + days),
+          fetch(API + '/trends?days=' + days),
+        ]);
+        const stats = await statsR.json();
+        const trends = await trendsR.json();
+        drawTrendChart(trends);
+        drawHeatChart(stats.heatMap || []);
+      } catch (e) { console.error('趋势加载失败:', e); }
+    }
+
+    function drawTrendChart(data) {
+      const canvas = el('trendChart');
+      if (!canvas || !data || data.length === 0) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const W = rect.width - 40;
+      const H = 260;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.scale(dpr, dpr);
+
+      const pad = { top: 20, right: 20, bottom: 40, left: 50 };
+      const pw = W - pad.left - pad.right;
+      const ph = H - pad.top - pad.bottom;
+      const maxVal = Math.max(1, ...data.map(d => Math.max(d.total, d.negative, d.positive)));
+      const xStep = pw / (data.length - 1 || 1);
+      function x(i) { return pad.left + i * xStep; }
+      function y(v) { return pad.top + ph - (v / maxVal) * ph; }
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= 4; i++) {
+        const gy = pad.top + (ph / 4) * i;
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(Math.round(maxVal * (1 - i / 4)), 5, gy + 3);
+      }
+
+      drawLine(ctx, data, x, y, 'total', '#64748b', 1, [6, 4]);
+      drawLine(ctx, data, x, y, 'positive', '#22c55e', 2);
+      drawLine(ctx, data, x, y, 'negative', '#ef4444', 2.5);
+
+      const legends = [{ label: '总量', color: '#64748b' }, { label: '负面', color: '#ef4444' }, { label: '正面', color: '#22c55e' }];
+      legends.forEach((l, i) => {
+        ctx.fillStyle = l.color;
+        ctx.fillRect(pad.left + i * 80, H - 5, 12, 3);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(l.label, pad.left + i * 80 + 16, H - 1);
+      });
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px sans-serif';
+      const labelStep = Math.max(1, Math.floor(data.length / 8));
+      data.forEach((d, i) => {
+        if (i % labelStep === 0) ctx.fillText(fmtDate(d.date), x(i) - 12, H - 10);
+      });
+    }
+
+    function drawLine(ctx, data, xFn, yFn, key, color, width, dash) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      if (dash) ctx.setLineDash(dash);
+      else ctx.setLineDash([]);
+      ctx.beginPath();
+      let first = true;
+      data.forEach((d, i) => {
+        const v = d[key] || 0;
+        if (first) { ctx.moveTo(xFn(i), yFn(v)); first = false; }
+        else ctx.lineTo(xFn(i), yFn(v));
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawHeatChart(data) {
+      const canvas = el('heatChart');
+      if (!canvas || !data || data.length === 0) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.parentElement.getBoundingClientRect().width - 40;
+      const H = 200;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.scale(dpr, dpr);
+
+      const maxVal = Math.max(1, ...data.map(d => d.count));
+      const barW = (W - 80) / 24 - 2;
+
+      data.forEach((d, i) => {
+        const h = (d.count / maxVal) * (H - 50);
+        const x = 50 + i * (barW + 2);
+        const y = H - 30 - h;
+        const gradient = ctx.createLinearGradient(x, y, x, H - 30);
+        gradient.addColorStop(0, '#3b82f6');
+        gradient.addColorStop(1, '#1e3a5f');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, barW, h);
+
+        if (i % 4 === 0) {
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '9px sans-serif';
+          ctx.fillText(d.hour, x - 4, H - 12);
+        }
+      });
+    }
+
+    async function loadStats() {
+      const days = el('statsDays').value || '7';
+      try {
+        const r = await fetch(API + '/stats?days=' + days);
+        const s = await r.json();
+        drawSentimentPie(s);
+        drawRiskBar(s);
+        renderKeywords(s.topKeywords || []);
+      } catch (e) { console.error('统计加载失败:', e); }
+    }
+
+    function drawSentimentPie(stats) {
+      const canvas = el('sentimentPie');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const size = 220;
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      ctx.scale(dpr, dpr);
+
+      const cx = size / 2, cy = size / 2, r = 80;
+      const data = [
+        { label: '正面', value: stats.sentimentBreakdown?.positive || 0, color: '#22c55e' },
+        { label: '负面', value: stats.sentimentBreakdown?.negative || 0, color: '#ef4444' },
+        { label: '中性', value: stats.sentimentBreakdown?.neutral || 0, color: '#64748b' },
+      ];
+      const total = data.reduce((s, d) => s + d.value, 0) || 1;
+      let angle = -Math.PI / 2;
+
+      data.forEach(d => {
+        const slice = (d.value / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, angle, angle + slice);
+        ctx.closePath();
+        ctx.fillStyle = d.color;
+        ctx.fill();
+        angle += slice;
+      });
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(total, cx, cy - 4);
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('总文章数', cx, cy + 16);
+
+      data.forEach((d, i) => {
+        ctx.fillStyle = d.color;
+        ctx.fillRect(size - 120, 30 + i * 24, 12, 12);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${d.label}: ${d.value} (${((d.value/total)*100).toFixed(1)}%)`, size - 104, 30 + i * 24 + 10);
+      });
+    }
+
+    function drawRiskBar(stats) {
+      const canvas = el('riskBar');
+      if (!canvas || !stats.riskBreakdown) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const W = 400, H = 180;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.scale(dpr, dpr);
+
+      const levels = [
+        { key: 'I', label: 'Ⅰ级', color: '#dc2626' },
+        { key: 'II', label: 'Ⅱ级', color: '#f97316' },
+        { key: 'III', label: 'Ⅲ级', color: '#eab308' },
+        { key: 'IV', label: 'Ⅳ级', color: '#3b82f6' },
+      ];
+      const maxVal = Math.max(1, ...levels.map(l => stats.riskBreakdown[l.key] || 0));
+      const barH = 28, gap = 10;
+
+      levels.forEach((l, i) => {
+        const v = stats.riskBreakdown[l.key] || 0;
+        const bw = Math.max(10, (v / maxVal) * 250);
+        const y = 30 + i * (barH + gap);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(l.label, 10, y + 18);
+
+        const gradient = ctx.createLinearGradient(80, y, 80 + bw, y);
+        gradient.addColorStop(0, l.color);
+        gradient.addColorStop(1, l.color + '88');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        const bwR = Math.min(bw, 250);
+        ctx.roundRect(80, y, bwR, barH, 6);
+        ctx.fill();
+
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(String(v), 80 + bwR + 8, y + 18);
+      });
+    }
+
+    function renderKeywords(keywords) {
+      const container = el('keywordCloud');
+      if (!container) return;
+      if (!keywords || keywords.length === 0) {
+        container.innerHTML = '<span style="color:var(--text-muted);">暂无数据</span>';
+        return;
+      }
+      const maxCount = keywords[0]?.count || 1;
+      container.innerHTML = keywords.map(k => {
+        const size = 0.7 + (k.count / maxCount) * 1.8;
+        const hue = 200 + (1 - k.count / maxCount) * 40;
+        return `<span style="font-size:${size.toFixed(1)}rem;color:hsl(${hue},70%,60%);padding:4px 8px;border-radius:6px;background:var(--card-bg);border:1px solid var(--border);">
+          ${escHtml(k.word)}<small style="color:var(--text-muted);margin-left:4px;">${k.count}</small>
+        </span>`;
+      }).join('');
+    }
+
+    async function triggerCollect() {
+      const btn = event?.target;
+      if (btn) { btn.disabled = true; btn.textContent = '采集中...'; }
+      try {
+        const r = await fetch(API + '/collect/trigger', { method: 'POST' });
+        const data = await r.json();
+        alert(data.message || '采集完成');
+        refreshAll();
+      } catch (e) {
+        alert('采集失败: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '▶ 采集'; }
+      }
+    }
+
+    function switchTab(name) {
+      currentTab = name;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      el('tab-' + name)?.classList.add('active');
+      event?.target?.classList.add('active') ||
+        document.querySelector(`[onclick="switchTab('${name}')"]`)?.classList.add('active');
+
+      if (name === 'articles') loadArticles();
+      if (name === 'alerts') loadAlerts();
+      if (name === 'trends') loadTrends();
+      if (name === 'stats') loadStats();
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('sentinel-theme', html.dataset.theme);
+    }
+
+    function today() { return new Date().toISOString().substring(0, 10); }
+    function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - parseInt(n)); return d.toISOString().substring(0, 10); }
+    function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    (function init() {
+      const saved = localStorage.getItem('sentinel-theme');
+      if (saved) document.documentElement.dataset.theme = saved;
+      refreshAll();
+      autoRefreshTimer = setInterval(() => {
+        loadStatus();
+        if (currentTab === 'articles') loadArticles(articlePage);
+      }, 60000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          clearInterval(autoRefreshTimer);
+        } else {
+          refreshAll();
+          autoRefreshTimer = setInterval(() => {
+            loadStatus();
+            if (currentTab === 'articles') loadArticles(articlePage);
+          }, 60000);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
