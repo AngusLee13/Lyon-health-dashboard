@@ -70,14 +70,14 @@ var __HEALTH_DATA__ = ${dataJson};
 })();
 </script>`;
 
-// 4. 找到 </body> 前插入
-const bodyEnd = originalHtml.lastIndexOf('</body>');
-if (bodyEnd === -1) {
-  console.error('错误: 未在 index.html 中找到 </body>');
+// 4. 找到第一个 <script> 标签前插入（必须在所有业务脚本之前注册拦截器）
+const firstScript = originalHtml.indexOf('<script>');
+if (firstScript === -1) {
+  console.error('错误: 未在 index.html 中找到 <script>');
   process.exit(1);
 }
 
-const result = originalHtml.slice(0, bodyEnd) + injectScript + '\n</body>\n</html>';
+const result = originalHtml.slice(0, firstScript) + injectScript + '\n' + originalHtml.slice(firstScript);
 
 // 5. 写入
 fs.writeFileSync(path.join(ROOT, 'dashboard/standalone.html'), result);
