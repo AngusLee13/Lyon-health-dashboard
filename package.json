@@ -11,8 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "build:standalone": "node scripts/build-standalone.js && copy dashboard\\standalone.html docs\\index.html",
-    "deploy": "npm run build:standalone && git add docs/ && git commit -m \"update health dashboard\" && git push"
+    "build:standalone": "node scripts/build-standalone.js && node scripts/build-offline-dashboard.js",
+    "deploy": "node scripts/build-standalone.js && node scripts/build-offline-dashboard.js && git add docs/ && git commit -m \"update health dashboard\" && git push"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.49.0",
