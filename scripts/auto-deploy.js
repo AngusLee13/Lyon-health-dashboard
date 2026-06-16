@@ -28,7 +28,7 @@ try {
 
 // 1. 生成健康数据 JSON
 console.log('[deploy] 生成健康数据...');
-require('./build-standalone');
+require('./generate-standalone-data');
 
 // 2. 基于原始看板 HTML 嵌入数据
 console.log('[deploy] 嵌入数据到看板...');
