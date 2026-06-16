@@ -77,7 +77,55 @@ if (firstScript === -1) {
   process.exit(1);
 }
 
-const result = originalHtml.slice(0, firstScript) + injectScript + '\n' + originalHtml.slice(firstScript);
+let result = originalHtml.slice(0, firstScript) + injectScript + '\n' + originalHtml.slice(firstScript);
+
+// 4.5 离线版本移除「身体」和「录入」标签页（只保留概览和分析）
+// 移除标签按钮
+result = result.replace(
+  /  <button class="tab" id="tab-body">身体<\/button>\n/,
+  ''
+).replace(
+  /  <button class="tab" id="tab-entry">录入<\/button>\n/,
+  ''
+);
+// 移除身体页和录入页的 HTML 区块
+result = result.replace(
+  /<!-- ====== 身体 ====== -->[\s\S]*?<!-- ====== 录入 ====== -->[\s\S]*?<!-- ====== 分析 ====== -->/,
+  '<!-- ====== 分析 ====== -->'
+);
+// 移除 switchTab 中的 body 分支
+result = result.replace(
+  /      if\(name==='body'\) loadBody\(\);\n/,
+  ''
+);
+// 移除 tab-body 和 tab-entry 事件监听
+result = result.replace(
+  /  \$\(['"]tab-body['"]\)\.addEventListener\(['"]click['"],function\(\)\{switchTab\(['"]body['"]\)\}\);\n/,
+  ''
+).replace(
+  /  \$\(['"]tab-entry['"]\)\.addEventListener\(['"]click['"],function\(\)\{switchTab\(['"]entry['"]\)\}\);\n/,
+  ''
+);
+// 移除 loadBody 函数定义
+result = result.replace(
+  /  \/\/ ====== Body ======\n  function loadBody\(\)\{[\s\S]*?\n  \}\);?\n/,
+  ''
+).replace(
+  /  \/\/ ====== Entry ======\n[\s\S]*?\n    \}\);?\n  \}\n/,
+  ''
+).replace(
+  /  \/\/ ====== Image Upload & Analyze ======\n[\s\S]*?\n  \/\/ ============================================================\n/,
+  ''
+).replace(
+  /  \/\/ ====== 备份恢复 ======\n[\s\S]*?\n  \}\);?\n/,
+  ''
+);
+// 移除不再需要的变量
+result = result.replace(/  var dietMeals = \[\], macroCache = null;\n/, '');
+result = result.replace(
+  /\n  \/\/ 初始同步备份日期选择器与概览日期\n  \$\(['"]bkDate['"]\)\.value = selDate;\n  \$\(['"]pickDate['"]\)\.addEventListener\(['"]change['"], function\(\)\{ \$\(['"]bkDate['"]\)\.value = selDate; \}\);/,
+  ''
+);
 
 // 5. 写入
 fs.writeFileSync(path.join(ROOT, 'dashboard/standalone.html'), result);
