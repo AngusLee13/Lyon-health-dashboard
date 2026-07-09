@@ -1,0 +1,44 @@
+{
+    "bots": [
+        {
+            "id": "main",
+            "name": "CLI总控",
+            "appId": "cli_xxxxxxxxxxxx",
+            "appSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "role": "router",
+            "systemPrompt": "你是飞书CLI总控助手...（请替换为你的 system prompt）",
+            "routerPrompt": "分析用户消息，判断应该分发给哪个Agent处理...",
+            "enabled": true
+        },
+        {
+            "id": "health",
+            "name": "健康助手",
+            "appId": "cli_xxxxxxxxxxxx",
+            "appSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "role": "health",
+            "systemPrompt": "你是个人专属健康教练...（请替换为你的 system prompt）",
+            "enabled": true,
+            "fallbackToMain": false
+        },
+        {
+            "id": "code",
+            "name": "代码助手",
+            "appId": "cli_placeholder_code",
+            "appSecret": "placeholder",
+            "role": "code",
+            "systemPrompt": "你是编程技术助手...（请替换为你的 system prompt）",
+            "enabled": false,
+            "fallbackToMain": true
+        },
+        {
+            "id": "career",
+            "name": "就业指导",
+            "appId": "cli_xxxxxxxxxxxx",
+            "appSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "role": "career",
+            "systemPrompt": "你是专业的就业指导顾问...（请替换为你的 system prompt）",
+            "enabled": true,
+            "fallbackToMain": true
+        }
+    ]
+}

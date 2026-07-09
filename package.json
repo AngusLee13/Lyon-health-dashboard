@@ -25,7 +25,7 @@
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.18.0",
     "sharp": "^0.35.1",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

@@ -3,7 +3,33 @@ dist/
 .env
 .data/
 bots.json
-ecosystem.config.js
 *.msi
 *.exe
 .DS_Store
+
+# 临时文件
+temp_*.txt
+temp_*.json
+
+# 日志
+logs/
+
+# 大型二进制文件（Tesseract 训练数据）
+tessdata/
+*.traineddata
+
+# 示例图片/下载文件
+download.png
+
+# 缓存
+.cache/
+
+# Claude Code 会话
+.claude/
+
+# 测试覆盖率
+coverage/
+
+# 独立看板（由 build 脚本生成）
+dashboard/standalone-data.json
+dashboard/standalone.html

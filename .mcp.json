@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "jianying-mcp": {
+      "command": "C:\\Users\\WINDOWS\\AppData\\Local\\Programs\\Python\\Python314\\Scripts\\uv.exe",
+      "args": [
+        "--directory",
+        "D:\\fisrt-cc\\tools\\jianying-mcp",
+        "run",
+        "jianyingdraft\\server.py"
+      ],
+      "env": {
+        "SAVE_PATH": "D:\\fisrt-cc\\tools\\jianying-mcp\\data\\drafts",
+        "OUTPUT_PATH": "D:\\fisrt-cc\\tools\\jianying-mcp\\data\\output"
+      }
+    }
+  }
+}

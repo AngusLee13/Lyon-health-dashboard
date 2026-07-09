@@ -7,12 +7,22 @@ const ROOT = path.resolve(__dirname, '..');
 
 function run(cmd, opts = {}) {
   console.log('[deploy] ' + cmd);
-  return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', ...opts });
+  return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', windowsHide: true, ...opts });
 }
 
 console.log('[deploy] ========== ' + new Date().toLocaleString('zh-CN') + ' ==========');
 
-// 0. Git 认证：优先使用 GH_TOKEN，否则使用 Windows 凭据管理器
+// 0. 先编译 TypeScript，确保 dist/ 是最新的（generate-standalone-data 依赖 dist/）
+console.log('[deploy] 编译 TypeScript...');
+try {
+  run('npx tsc', { stdio: 'pipe' });
+  console.log('[deploy] TypeScript 编译成功');
+} catch (e) {
+  console.error('[deploy] TypeScript 编译失败: ' + e.message);
+  console.error('[deploy] 将继续使用现有 dist/ 产物（可能不是最新）');
+}
+
+// 0.5 Git 认证：优先使用 GH_TOKEN，否则使用 Windows 凭据管理器
 const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
 if (token) {
   try {

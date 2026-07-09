@@ -795,6 +795,28 @@ select.inp { cursor: pointer; }
     </div>
     <div class="hero-warn" id="heroWarn"></div>
   </div>
+  <!-- TDEE / NEAT 参考卡片（仅展示，不参与热量统计） -->
+  <div class="c" id="tdeeRefCard" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:8px">
+    <div class="ct" style="margin-bottom:10px"><svg class="ico ico-lg" style="color:var(--primary)"><use href="#ico-chart"/></svg> 消耗参考<span style="font-size:10px;color:var(--text-muted);margin-left:6px;font-weight:400">（基于体重趋势反推 · 仅供参考）</span></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:80px;text-align:center;background:var(--bg-elevated);border-radius:var(--radius-sm);padding:10px 8px">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">公式 TDEE</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text-secondary)" id="tdeeFormulaVal">--</div>
+        <div style="font-size:10px;color:var(--text-muted)">PAL估算</div>
+      </div>
+      <div style="flex:1;min-width:80px;text-align:center;background:var(--bg-elevated);border-radius:var(--radius-sm);padding:10px 8px">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">校准 TDEE</div>
+        <div style="font-size:20px;font-weight:800;color:var(--success)" id="tdeeCalVal">--</div>
+        <div style="font-size:10px;color:var(--text-muted)" id="tdeeCalDays">体重反推</div>
+      </div>
+      <div style="flex:1;min-width:80px;text-align:center;background:var(--bg-elevated);border-radius:var(--radius-sm);padding:10px 8px">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">隐含 NEAT</div>
+        <div style="font-size:20px;font-weight:800;color:var(--warning)" id="neatVal">--</div>
+        <div style="font-size:10px;color:var(--text-muted)">非运动消耗</div>
+      </div>
+    </div>
+    <div id="tdeeNote" style="font-size:10px;color:var(--text-muted);margin-top:8px;text-align:center;line-height:1.5"></div>
+  </div>
   <div class="c"><div class="ct"><svg class="ico ico-lg" style="color:var(--color-sleep)"><use href="#ico-moon"/></svg> 睡眠<span class="badge badge-miss" id="badgeSleep">未记录</span></div><div id="sleepPanel">--</div></div>
   <div class="c"><div class="ct"><svg class="ico ico-lg" style="color:var(--success)"><use href="#ico-strength"/></svg> 运动<span class="badge badge-miss" id="badgeEx">未记录</span></div><div id="exPanel">--</div></div>
   <div class="c"><div class="ct"><svg class="ico ico-lg" style="color:var(--warning)"><use href="#ico-food"/></svg> 饮食<span class="badge badge-miss" id="badgeDiet">未记录</span></div><div id="dietPanel">暂无饮食记录</div><div id="dietSum" style="display:none;text-align:right;padding-top:8px;border-top:1px solid var(--divider);font-weight:600;margin-top:8px"></div></div>
@@ -861,6 +883,7 @@ select.inp { cursor: pointer; }
   <div class="c"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500"><svg class="ico" style="color:var(--color-sodium);vertical-align:-2px"><use href="#ico-salt"/></svg> 钠摄入 mg（— 目标 2000）</div><svg class="cht" id="chSodium"></svg></div>
   <!-- ── 消耗 & 缺口 ── -->
   <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px 4px;font-weight:600">⚡ 消耗 & 缺口</div>
+  <div class="c"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500"><svg class="ico" style="color:var(--primary);vertical-align:-2px"><use href="#ico-chart"/></svg> 总消耗 TDEE kcal（— 公式 ··· 校准）</div><svg class="cht" id="chTdee"></svg></div>
   <div class="c"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500"><svg class="ico" style="color:var(--success);vertical-align:-2px"><use href="#ico-steps"/></svg> 每日步数</div><svg class="cht" id="chSteps"></svg></div>
   <div class="c"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500"><svg class="ico" style="color:var(--success);vertical-align:-2px"><use href="#ico-chart"/></svg> 热量缺口 kcal（上亏下盈）</div><svg class="cht" id="chDef"></svg></div>
   <!-- ── 睡眠 ── -->
@@ -888,17 +911,18 @@ select.inp { cursor: pointer; }
   // 体重趋势校准缓存（避免每次切换日期都重新请求）
   var _confCache={ts:0, factor:null, days:0};
 
-  /** 用14天体重变化反推真实缺口，与估算缺口对比得出校准系数 */
+  /** 用14天体重变化反推真实缺口，与估算缺口对比得出校准系数，同时更新TDEE参考卡片 */
   function updateConfidenceBadge(dateStr, consumed, totalBurn){
     var now=Date.now();
     // 缓存5分钟内不重复请求
     if(_confCache.ts && (now-_confCache.ts)<300000){
       renderConfBadge(_confCache.factor, _confCache.days);
+      updateTdeeCard(_confCache.trends, totalBurn);
       return;
     }
     fetch('/api/health/trends?days=14&end='+dateStr).then(function(r){return r.json()}).then(function(res){
       var tr=(res.trends||[]).filter(function(t){return t.weight>0 && t.consumed>0;});
-      if(tr.length<3){ renderConfBadge(null,0); return; }
+      if(tr.length<3){ renderConfBadge(null,0); updateTdeeCard(null, totalBurn); return; }
       // 14天实际日均缺口
       var first=tr[0], last=tr[tr.length-1];
       var actualDailyDeficit=0;
@@ -914,9 +938,10 @@ select.inp { cursor: pointer; }
       if(actualDailyDeficit>50 && estDailyDeficit>50){
         factor=actualDailyDeficit/estDailyDeficit;
       }
-      _confCache={ts:now, factor:factor, days:tr.length};
+      _confCache={ts:now, factor:factor, days:tr.length, trends:tr};
       renderConfBadge(factor, tr.length);
-    }).catch(function(){ renderConfBadge(null,0); });
+      updateTdeeCard(tr, totalBurn);
+    }).catch(function(){ renderConfBadge(null,0); updateTdeeCard(null, totalBurn); });
   }
 
   function renderConfBadge(factor, days){
@@ -937,6 +962,42 @@ select.inp { cursor: pointer; }
     }
     cb.innerHTML='· <span style="color:'+color+'">'+label+'</span>';
     cb.title='14天体重趋势校准：估算缺口×'+factor.toFixed(2)+'≈真实缺口（'+days+'天数据）';
+  }
+
+  /** 更新概览页 TDEE / NEAT 参考卡片 */
+  function updateTdeeCard(trends, formulaTdee){
+    var fv=safeEl('tdeeFormulaVal'), cv=safeEl('tdeeCalVal'), nv=safeEl('neatVal');
+    var cd=safeEl('tdeeCalDays'), note=safeEl('tdeeNote');
+    if(fv) fv.textContent = formulaTdee || '--';
+    // 取最近的校准值
+    var latest=null;
+    if(trends){
+      for(var i=trends.length-1;i>=0;i--){
+        if(trends[i] && trends[i].tdeeCalibrated!=null){
+          latest=trends[i]; break;
+        }
+      }
+    }
+    if(latest){
+      if(cv) cv.textContent = latest.tdeeCalibrated;
+      if(cd) cd.textContent = '近'+latest.calibrationDays+'天反推';
+      if(nv){ nv.textContent = latest.neat!=null ? (latest.neat>=0?'+':'')+latest.neat : '--'; }
+      if(note && formulaTdee && latest.tdeeCalibrated){
+        var diff = formulaTdee - latest.tdeeCalibrated;
+        if(Math.abs(diff) > 200){
+          note.innerHTML = '⚠️ 公式比校准高 <b>'+Math.abs(diff)+' kcal</b>，实际缺口可能小于估算值';
+        } else {
+          note.innerHTML = '✅ 公式与校准接近（差'+Math.abs(diff)+'kcal），估算可信度较高';
+        }
+      } else if(note) {
+        note.innerHTML = '积累更多体重+饮食数据后，校准会更准确';
+      }
+    } else {
+      if(cv) cv.textContent = '--';
+      if(cd) cd.textContent = '数据不足';
+      if(nv) nv.textContent = '--';
+      if(note) note.innerHTML = '需要至少3天同时有体重和饮食记录才能反推';
+    }
   }
 
   // ====== 主题切换 ======
@@ -2031,6 +2092,111 @@ select.inp { cursor: pointer; }
     svg.innerHTML=defs+axis+yT+tLine+extLine+'<path d="'+areaPath+'" fill="rgba(167,139,250,0.15)"/>'+'<path d="'+linePath+'" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+dots+labels;
   }
 
+  /** 双线图：公式TDEE(实线) + 校准TDEE(虚线) */
+  function drawTdeeLines(id, data){
+    if(!data||data.length===0) return;
+    var el=document.getElementById(id);if(!el) return;
+    var W=el.clientWidth||600, H=200, PAD={t:20,r:12,b:32,l:44};
+    var PW=W-PAD.l-PAD.r, PH=H-PAD.t-PAD.b;
+    if(PW<=0||PH<=0) return;
+    var svg=el;
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    svg.style.width='100%'; svg.style.height=H+'px';
+    svg.style.display='block';
+
+    var vals=[], calVals=[], labels=[];
+    for(var i=0;i<data.length;i++){
+      var d=data[i];
+      if(d.tdee>0) vals.push(d.tdee);
+      if(d.tdeeCalibrated!=null) calVals.push(d.tdeeCalibrated);
+      labels.push(d.label||d.date);
+    }
+    var allVals=vals.concat(calVals);
+    if(allVals.length===0){
+      var txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x',W/2); txt.setAttribute('y',H/2);
+      txt.setAttribute('text-anchor','middle'); txt.setAttribute('fill','#9597a8');
+      txt.setAttribute('font-size','12'); txt.textContent='暂无数据';
+      svg.appendChild(txt); return;
+    }
+    var vmin=Math.min.apply(null,allVals)*0.85;
+    var vmax=Math.max.apply(null,allVals)*1.08;
+    var range=vmax-vmin||1;
+    function x(i){ return PAD.l+(i/(data.length-1||1))*PW; }
+    function y(v){ return PAD.t+PH-(v-vmin)/range*PH; }
+
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('stroke','var(--divider)'); g.setAttribute('stroke-width','0.5');
+    for(var gy=PAD.t;gy<=PAD.t+PH;gy+=PH/4){
+      var line=document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',PAD.l); line.setAttribute('x2',W-PAD.r);
+      line.setAttribute('y1',gy); line.setAttribute('y2',gy); g.appendChild(line);
+      var t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',PAD.l-5); t.setAttribute('y',gy+4);
+      t.setAttribute('text-anchor','end'); t.setAttribute('fill','var(--text-muted)');
+      t.setAttribute('font-size','9');
+      t.textContent=Math.round(vmin+(PH-(gy-PAD.t))/PH*range); g.appendChild(t);
+    }
+    svg.appendChild(g);
+
+    var step=Math.max(1,Math.floor(data.length/6));
+    for(var i2=0;i2<data.length;i2+=step){
+      var tx=document.createElementNS('http://www.w3.org/2000/svg','text');
+      tx.setAttribute('x',x(i2)); tx.setAttribute('y',H-6);
+      tx.setAttribute('text-anchor','middle'); tx.setAttribute('fill','var(--text-muted)');
+      tx.setAttribute('font-size','9'); tx.textContent=labels[i2]; svg.appendChild(tx);
+    }
+
+    var ptsF=[];
+    for(var i3=0;i3<data.length;i3++){
+      if(data[i3].tdee>0) ptsF.push(x(i3).toFixed(1)+','+y(data[i3].tdee).toFixed(1));
+    }
+    if(ptsF.length>=2){
+      var pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+      pl.setAttribute('points',ptsF.join(' '));
+      pl.setAttribute('fill','none'); pl.setAttribute('stroke','var(--text-secondary)');
+      pl.setAttribute('stroke-width','2'); pl.setAttribute('stroke-linejoin','round');
+      svg.appendChild(pl);
+    }
+
+    var ptsC=[], calPts=[];
+    for(var i4=0;i4<data.length;i4++){
+      if(data[i4].tdeeCalibrated!=null){
+        var cx=x(i4), cy=y(data[i4].tdeeCalibrated);
+        ptsC.push(cx.toFixed(1)+','+cy.toFixed(1)); calPts.push({cx:cx, cy:cy});
+      }
+    }
+    if(ptsC.length>=2){
+      var pl2=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+      pl2.setAttribute('points',ptsC.join(' '));
+      pl2.setAttribute('fill','none'); pl2.setAttribute('stroke','var(--success)');
+      pl2.setAttribute('stroke-width','1.8'); pl2.setAttribute('stroke-dasharray','4 5');
+      pl2.setAttribute('stroke-linejoin','round'); svg.appendChild(pl2);
+      for(var k=0;k<calPts.length;k++){
+        var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('cx',calPts[k].cx); c.setAttribute('cy',calPts[k].cy);
+        c.setAttribute('r','3'); c.setAttribute('fill','var(--success)'); svg.appendChild(c);
+      }
+    }
+
+    var lg=document.createElementNS('http://www.w3.org/2000/svg','g');
+    lg.setAttribute('transform','translate('+(PAD.l+6)+','+(PAD.t+2)+')');
+    var r1=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r1.setAttribute('x','0'); r1.setAttribute('y','0'); r1.setAttribute('width','14'); r1.setAttribute('height','3');
+    r1.setAttribute('fill','var(--text-secondary)'); lg.appendChild(r1);
+    var t1=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t1.setAttribute('x','18'); t1.setAttribute('y','4'); t1.setAttribute('fill','var(--text-secondary)');
+    t1.setAttribute('font-size','9'); t1.textContent='公式TDEE'; lg.appendChild(t1);
+    var r2=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r2.setAttribute('x','80'); r2.setAttribute('y','0'); r2.setAttribute('width','14'); r2.setAttribute('height','3');
+    r2.setAttribute('fill','var(--success)'); lg.appendChild(r2);
+    var t2=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t2.setAttribute('x','98'); t2.setAttribute('y','4'); t2.setAttribute('fill','var(--success)');
+    t2.setAttribute('font-size','9'); t2.textContent='校准TDEE'; lg.appendChild(t2);
+    svg.appendChild(lg);
+  }
+
   function drawBedtimeChart(id,tr){
     var svg=$(id), W=svg.parentElement.clientWidth-4||340, H=160;
     svg.setAttribute('viewBox','0 0 '+W+' '+H);
@@ -2113,8 +2279,8 @@ select.inp { cursor: pointer; }
     // 美观取整
     var mag=Math.pow(10,Math.floor(Math.log10(maxV)));
     var norm=maxV/mag;
-    if(norm<=1.2) maxV=Math.ceil(maxV*5)/(5/mag);
-    else if(norm<=2) maxV=Math.ceil(maxV*2)/(2/mag);
+    if(norm<=1.2) maxV=Math.ceil(maxV/(mag/5))*(mag/5);
+    else if(norm<=2) maxV=Math.ceil(maxV/(mag/2))*(mag/2);
     else maxV=Math.ceil(maxV/1000)*1000;
     // 坐标计算
     function xPos(i){var iw=pw*0.94,ox=pad.l+pw*0.03;return ox+(n===1?iw/2:(i/(n-1))*iw);}
@@ -2151,11 +2317,23 @@ select.inp { cursor: pointer; }
       tLine='<line x1="'+pad.l+'" y1="'+ty.toFixed(1)+'" x2="'+(pad.l+pw)+'" y2="'+ty.toFixed(1)+'" stroke="var(--warning)" stroke-width="1" stroke-dasharray="5,3" opacity="0.5"/>';
       tLine+='<text x="'+(pad.l-6)+'" y="'+(ty+3)+'" text-anchor="end" fill="var(--warning)" font-size="9" font-weight="700">10k</text>';
     }
-    // Y轴：只保留目标值标签，网格线省略
+    // Y轴刻度：生成 4-5 个整数刻度
+    var yTicks=[], yTickStep;
+    if(maxV<=5000){yTickStep=1000;}
+    else if(maxV<=10000){yTickStep=2000;}
+    else if(maxV<=20000){yTickStep=5000;}
+    else{yTickStep=10000;}
+    for(var tk=0; tk<=maxV+0.001; tk+=yTickStep){yTicks.push(tk);}
     var yT='';
+    for(var yi=0; yi<yTicks.length; yi++){
+      var tv=yTicks[yi], ty=yPos(tv);
+      yT+='<line x1="'+(pad.l-4)+'" y1="'+ty.toFixed(1)+'" x2="'+pad.l+'" y2="'+ty.toFixed(1)+'" stroke="var(--border-strong)" stroke-width="1"/>';
+      yT+='<text x="'+(pad.l-6)+'" y="'+(ty+3)+'" text-anchor="end" fill="var(--text-muted)" font-size="9">'+(tv/1000).toFixed(0)+'k</text>';
+      if(yi>0) yT+='<line x1="'+pad.l+'" y1="'+ty.toFixed(1)+'" x2="'+(pad.l+pw)+'" y2="'+ty.toFixed(1)+'" stroke="var(--divider)" stroke-width="0.5" stroke-dasharray="2,3"/>';
+    }
     var axis='<line x1="'+pad.l+'" y1="'+pad.t+'" x2="'+pad.l+'" y2="'+(pad.t+ph)+'" stroke="var(--border-strong)" stroke-width="1"/>';
     axis+='<line x1="'+pad.l+'" y1="'+(pad.t+ph)+'" x2="'+(pad.l+pw)+'" y2="'+(pad.t+ph)+'" stroke="var(--border-strong)" stroke-width="1"/>';
-    svg.innerHTML=defs+axis+tLine+extLine+'<path d="'+areaPath+'" fill="rgba(52,211,153,0.2)"/>'+'<path d="'+linePath+'" fill="none" stroke="#34d399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+dots+labels;
+    svg.innerHTML=defs+axis+yT+tLine+extLine+'<path d="'+areaPath+'" fill="rgba(52,211,153,0.2)"/>'+'<path d="'+linePath+'" fill="none" stroke="#34d399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+dots+labels;
   }
 
   function drawSodiumScatter(id,tr,target,yMax){
@@ -2259,6 +2437,7 @@ select.inp { cursor: pointer; }
       drawSleepStack('chSleep',tr,8,12);
       drawSleepScoreChart('chSleepScore',tr);
       drawBedtimeChart('chBedtime',tr);
+      drawTdeeLines('chTdee',tr);
       drawStepArea('chSteps',tr,10000);
       drawSodiumScatter('chSodium',tr,2000,6000);
       
