@@ -700,13 +700,8 @@ export function createRoutes(messageSender: MessageSender): Router {
           const walkCardio = (r.cardio && WALKING.indexOf(r.cardio.bodyPart) >= 0) ? r.cardio.calories : 0;
           const stepCal = walkCardio > 0 ? Math.max(rawStepCal, walkCardio) : rawStepCal;
           const trainCal = (r.training?.calories || 0) + (r.cardio?.calories || 0);
-          // PAL 分级 TDEE（与概览看板/日报保持一致）
-          let pal;
-          if (steps < 3000) pal = 1.20;
-          else if (steps < 8000) pal = 1.35;
-          else if (steps < 15000) pal = 1.55;
-          else pal = 1.75;
-          const tdee = Math.round(bmr * pal + trainCal);
+          // TDEE = 久坐基线(BMR×1.2) + 步数 + 训练，避免PAL乘数叠加高估
+          const tdee = Math.round(bmr * 1.2 + stepCal + trainCal);
           const deficit = cal.consumed > 0 ? Number((tdee - cal.consumed).toFixed(1)) : null;
 
           const bedtimeRaw = r.sleep?.bedTime;

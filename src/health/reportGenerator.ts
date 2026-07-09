@@ -187,16 +187,14 @@ function buildCard(date: string, record: DailyRecord | null, training: TrainingD
     risks.push(`今日步数仅 ${record.steps} 步，活动量偏低，建议饭后散步20分钟`);
   }
 
-  // 基础代谢：PAL分级替代固定系数，避免高步数日TDEE失控
+  // 基础代谢：久坐基线(BMR×1.2) + 步数消耗 + 训练消耗，避免PAL乘数与运动叠加高估
   const bmr = Math.round(10 * weight + 6.25 * 181 - 5 * calcAge(date) + 5);
   const steps = record?.steps || 0;
-  // PAL分级：<3k→1.20  3-8k→1.35  8-15k→1.55  >15k→1.75
-  let pal: number;
-  if (steps < 3000) pal = 1.20;
-  else if (steps < 8000) pal = 1.35;
-  else if (steps < 15000) pal = 1.55;
-  else pal = 1.75;
-  const totalBurn = Math.round(bmr * pal + totalTrainCal);
+  const stepCalRaw = steps > 0 ? Math.round(steps * 0.04 * (weight / 70)) : 0;
+  // 徒步有氧与步数取较大值，不叠加
+  const walkCardio2 = (record?.cardio && ['徒步', '户外步行', '快走', '室内步行'].indexOf(record.cardio.bodyPart) >= 0) ? record.cardio.calories : 0;
+  const stepCal = walkCardio2 > 0 ? Math.max(stepCalRaw, walkCardio2) : stepCalRaw;
+  const totalBurn = Math.round(bmr * 1.2 + stepCal + totalTrainCal);
   const activityCal = totalBurn - bmr;
   const deficit = calorie.consumed > 0 ? Math.round(totalBurn - calorie.consumed) : 0;
 
@@ -566,13 +564,7 @@ function buildPlainText(date: string, record: DailyRecord | null, training: Trai
   const steps = record?.steps || 0;
   const stepCalories = steps > 0 ? estimateStepCalories(steps, weight) : 0;
   const totalTrainCal = Math.round((effectiveStrength?.calories || 0) + (effectiveCardio?.calories || 0));
-  // PAL分级：<3k→1.20  3-8k→1.35  8-15k→1.55  >15k→1.75
-  let pal2: number;
-  if (steps < 3000) pal2 = 1.20;
-  else if (steps < 8000) pal2 = 1.35;
-  else if (steps < 15000) pal2 = 1.55;
-  else pal2 = 1.75;
-  const totalBurn = Math.round(bmr * pal2 + totalTrainCal);
+  const totalBurn = Math.round(bmr * 1.2 + stepCalories + totalTrainCal);
   const activityCal = totalBurn - bmr;
   const deficit = calorie.consumed > 0 ? Math.round(totalBurn - calorie.consumed) : 0;
 
