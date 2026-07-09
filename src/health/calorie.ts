@@ -2,6 +2,15 @@ import { DailyRecord, DietMeal, DietData } from './types';
 import { config } from '../config';
 import { matchCalorieFromLibrary } from './foodLibrary';
 
+/** 统一 BMR 计算：优先用 .env 中实测的 KATCH_MCARDLE_BMR，否则用调整体重公式 */
+export function getBMR(weightKg: number, age?: number): number {
+  const envBmr = parseInt(process.env.KATCH_MCARDLE_BMR || '', 10);
+  if (envBmr > 0) return envBmr;
+  // 调整体重：理想76kg + 1/4×(实际-理想)
+  const adjW = Math.round(76 + 0.25 * (weightKg - 76));
+  return Math.round(10 * adjW + 6.25 * 181 - 5 * (age || 31) + 5);
+}
+
 /** 单个食物的钠含量估算（mg/100g）——常用中餐（参考中国食物成分表） */
 const FOOD_SODIUM: Record<string, number> = {
   // 复合菜品（需在成分关键词之前，确保优先匹配）

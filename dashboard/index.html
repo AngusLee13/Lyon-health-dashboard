@@ -909,7 +909,7 @@ select.inp { cursor: pointer; }
   function R1(v){ return typeof v==='number'?Number(v.toFixed(1)):v; }
 
   // 体重趋势校准缓存（避免每次切换日期都重新请求）
-  var _confCache={ts:0, factor:null, days:0};
+  var _confCache={ts:0, factor:null, days:0, bmr:0};
 
   /** 用14天体重变化反推真实缺口，与估算缺口对比得出校准系数，同时更新TDEE参考卡片 */
   function updateConfidenceBadge(dateStr, consumed, totalBurn){
@@ -921,6 +921,7 @@ select.inp { cursor: pointer; }
       return;
     }
     fetch('/api/health/trends?days=14&end='+dateStr).then(function(r){return r.json()}).then(function(res){
+      if(res.bmr>0) _confCache.bmr=res.bmr;
       var tr=(res.trends||[]).filter(function(t){return t.weight>0 && t.consumed>0;});
       if(tr.length<3){ renderConfBadge(null,0); updateTdeeCard(null, totalBurn); return; }
       // 14天实际日均缺口
@@ -1081,9 +1082,8 @@ select.inp { cursor: pointer; }
       var age=rd2.getFullYear()-bd.getFullYear();
       var m2=rd2.getMonth()-bd.getMonth();
       if(m2<0||(m2===0&&rd2.getDate()<bd.getDate())) age--;
-      // 调整体重：理想76kg + 1/4×(实际-理想)，肥胖者用总体重会高估BMR
-      var adjWt=Math.round(76+0.25*(weight-76));
-      var bmr=Math.round(10*adjWt+6.25*181-5*age+5);
+      // BMR：优先用 API 返回的实测 Katch-McArdle 值，否则调整体重
+      var bmr=_confCache.bmr>0?_confCache.bmr:Math.round(10*Math.round(76+0.25*(weight-76))+6.25*181-5*age+5);
       var trainCal=((r.training&&r.training.calories)||0)+((r.cardio&&r.cardio.calories)||0);
       var steps=r.steps||0;
       var rawStepCal=steps>0?Math.round(steps*0.04*(weight/70)):0;
