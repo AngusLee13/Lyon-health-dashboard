@@ -693,7 +693,9 @@ export function createRoutes(messageSender: MessageSender): Router {
           let age = rd.getFullYear() - birth.getFullYear();
           const m = rd.getMonth() - birth.getMonth();
           if (m < 0 || (m === 0 && rd.getDate() < birth.getDate())) age--;
-          const bmr = Math.round(10 * weight + 6.25 * 181 - 5 * age + 5);
+          // 调整体重：理想76kg + 1/4×(实际-理想)，避免肥胖者BMR被总体重高估
+          const adjW = Math.round(76 + 0.25 * (weight - 76));
+          const bmr = Math.round(10 * adjW + 6.25 * 181 - 5 * age + 5);
           const steps = r.steps || 0;
           const rawStepCal = steps > 0 ? Math.round(steps * 0.04 * (weight / 70)) : 0;
           const WALKING = ['徒步', '户外步行', '快走', '室内步行'];
@@ -776,8 +778,9 @@ export function createRoutes(messageSender: MessageSender): Router {
             t.calibrationCapped = capped;
             // 下限保护：校准值不应低于 BMR（人不可能不呼吸）
             calibratedTdee = Math.max(calibratedTdee, Math.round(formulaTdee * 0.7));
-            // NEAT = 校准TDEE - BMR - 步数消耗 - 训练消耗（≥0，不可能为负）
-            const bmrEst = Math.round(10 * (t.weight || 118) + 6.25 * 181 - 5 * 31 + 5);
+            // 用调整体重算 BMR（肥胖者用总体重会高估代谢）
+            const adjWt = Math.round(76 + 0.25 * ((t.weight || 118) - 76));  // 理想76kg + 1/4超额
+            const bmrEst = Math.round(10 * adjWt + 6.25 * 181 - 5 * 31 + 5);
             const stepEst = Math.round((t.steps || 0) * 0.04 * ((t.weight || 118) / 70));
             const trainEst = t.trainCal || 0;
             const neatRaw = Math.round(calibratedTdee - bmrEst - stepEst - trainEst);

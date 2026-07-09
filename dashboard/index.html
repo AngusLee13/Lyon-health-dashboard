@@ -1081,7 +1081,9 @@ select.inp { cursor: pointer; }
       var age=rd2.getFullYear()-bd.getFullYear();
       var m2=rd2.getMonth()-bd.getMonth();
       if(m2<0||(m2===0&&rd2.getDate()<bd.getDate())) age--;
-      var bmr=Math.round(10*weight+6.25*181-5*age+5);
+      // 调整体重：理想76kg + 1/4×(实际-理想)，肥胖者用总体重会高估BMR
+      var adjWt=Math.round(76+0.25*(weight-76));
+      var bmr=Math.round(10*adjWt+6.25*181-5*age+5);
       var trainCal=((r.training&&r.training.calories)||0)+((r.cardio&&r.cardio.calories)||0);
       var steps=r.steps||0;
       var rawStepCal=steps>0?Math.round(steps*0.04*(weight/70)):0;
