@@ -774,11 +774,14 @@ export function createRoutes(messageSender: MessageSender): Router {
             }
             t.tdeeCalibrated = calibratedTdee;
             t.calibrationCapped = capped;
-            // NEAT = 校准TDEE - BMR - 步数消耗 - 训练消耗
+            // 下限保护：校准值不应低于 BMR（人不可能不呼吸）
+            calibratedTdee = Math.max(calibratedTdee, Math.round(formulaTdee * 0.7));
+            // NEAT = 校准TDEE - BMR - 步数消耗 - 训练消耗（≥0，不可能为负）
             const bmrEst = Math.round(10 * (t.weight || 118) + 6.25 * 181 - 5 * 31 + 5);
             const stepEst = Math.round((t.steps || 0) * 0.04 * ((t.weight || 118) / 70));
             const trainEst = t.trainCal || 0;
-            t.neat = Math.round(calibratedTdee - bmrEst - stepEst - trainEst);
+            const neatRaw = Math.round(calibratedTdee - bmrEst - stepEst - trainEst);
+            t.neat = Math.max(0, neatRaw);  // NEAT 不能为负
             t.calibrationDays = actualDays;
           } else {
             t.tdeeCalibrated = null;
