@@ -9,7 +9,7 @@ import { calcCalorieSummary } from '../health/calorie';
 import { buildDailyReport } from '../health/reportGenerator';
 import { runEveningCheckin } from '../health/eveningCheckin';
 import { analyzeImageBuffer } from '../health/imageRecognition';
-import { listFoods, addFood, deleteFood } from '../health/foodLibrary';
+import { listFoods, addFood, deleteFood, lookupPackagedFood } from '../health/foodLibrary';
 import { searchConversations } from '../memory/bridge';
 
 // ─── 监控指标收集 ───
@@ -407,6 +407,25 @@ export function createRoutes(messageSender: MessageSender): Router {
         return;
       }
       res.json({ success: true, name });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // AI 查询品牌包装食物营养成分
+  router.post('/api/health/foods/lookup', async (req: Request, res: Response) => {
+    try {
+      const { query } = req.body as { query: string };
+      if (!query) {
+        res.status(400).json({ error: '请提供品牌+商品名' });
+        return;
+      }
+      const result = await lookupPackagedFood(query);
+      if (!result.success) {
+        res.status(404).json({ error: result.error });
+        return;
+      }
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

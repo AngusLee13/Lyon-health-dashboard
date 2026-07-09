@@ -141,7 +141,8 @@ const NUTRITION_LABEL_PROMPT = `你是一个食品营养成分表解析助手。
 
 /** 检测 OCR 文字是否来自食品营养成分表 */
 function isNutritionLabelImage(ocrText: string): boolean {
-  const patterns = [
+  // 精确特征模式（清晰 OCR）
+  const strongPatterns = [
     /营养成分表/,
     /营养成份表/,
     /Nutrition Facts/i,
@@ -151,12 +152,35 @@ function isNutritionLabelImage(ocrText: string): boolean {
     /Energy.*Protein.*Fat.*Carb/i,
     /NRV\s*%/,
   ];
-  const matchCount = patterns.filter(p => p.test(ocrText)).length;
-  if (matchCount >= 2) {
-    console.log(`[营养成分检测] 命中 ${matchCount} 个特征模式，判定为营养成分表`);
-    return true;
+
+  // 弱特征模式：OCR 乱码时仍可能命中的单个营养关键词
+  const weakPatterns = [
+    /蛋白[质贡]/,
+    /脂肪[的肋]/,
+    /碳水[化合]/,
+    /钠[含]/,
+    /能[量国]/,
+    /膳食[纤]/,
+    /反式[脂]/,
+    /饱和[脂]/,
+    /胆[固甾]/,
+    /[Nn][Rr][Vv]/,
+    /[Kk][Jj]/,
+    /[Kk]cal/,
+    /每.*份/,
+    /[克gG]\s*[\/／]\s*100/,
+    /[0-9]{2,}\s*%/,
+  ];
+
+  const strongCount = strongPatterns.filter(p => p.test(ocrText)).length;
+  const weakCount = weakPatterns.filter(p => p.test(ocrText)).length;
+
+  // 命中 ≥1 个强特征，或 ≥3 个弱特征
+  const matched = strongCount >= 1 || weakCount >= 3;
+  if (matched) {
+    console.log(`[营养成分检测] 命中: 强特征=${strongCount}, 弱特征=${weakCount}, 判定为营养成分表`);
   }
-  return false;
+  return matched;
 }
 
 /** 营养成分表识别结果 */
@@ -290,6 +314,21 @@ async function preprocessImage(buffer: Buffer, upscale = 3): Promise<Buffer> {
     .toBuffer();
 }
 
+/** 图像预处理（包装专用）：放大 + 自适应阈值二值化 → 适合印刷体营养成分表 */
+async function preprocessForLabel(buffer: Buffer, upscale = 3): Promise<Buffer> {
+  const metadata = await sharp(buffer).metadata();
+  const width = (metadata.width || 400) * upscale;
+  const height = (metadata.height || 800) * upscale;
+
+  return sharp(buffer)
+    .resize(width, height, { kernel: 'lanczos3' })
+    .grayscale()
+    .normalize()
+    .linear(1.3, -(128 * 0.3))  // 提升对比度：高对比让印刷文字更清晰
+    .sharpen({ sigma: 1.2, m1: 0.5, m2: 0.5 })      // 更强锐化
+    .toBuffer();
+}
+
 /** 判断 OCR 输出质量：有效中英文字符占比过低视为乱码 */
 function ocrQualityScore(text: string): number {
   if (!text || text.length < 10) return 0;
@@ -322,6 +361,38 @@ async function ocrWithRetry(buffer: Buffer, lang: string): Promise<string> {
       if (score > 0.4) break;
     } catch (err: any) {
       console.warn("[OCR] PSM=" + psm + " failed: " + err.message);
+    }
+  }
+  return bestText;
+}
+
+/** 执行 OCR（营养标签专用）：优先使用稀疏文本模式，更适合表格类排版 */
+async function ocrForLabel(buffer: Buffer, lang: string): Promise<string> {
+  // PSM 11 (SPARSE_TEXT): 适合营养成分表这种稀疏排版的表格文字
+  // PSM 4 (SINGLE_COLUMN): 适合文字按列排列
+  // PSM 3 (AUTO): 全自动
+  const psms = [Tesseract.PSM.SPARSE_TEXT, Tesseract.PSM.SINGLE_COLUMN, Tesseract.PSM.AUTO];
+  let bestText = "";
+  let bestScore = 0;
+
+  for (const psm of psms) {
+    try {
+      const worker = await Tesseract.createWorker(lang, undefined, { logger: () => {} });
+      await worker.setParameters({ tessedit_pageseg_mode: psm });
+      const result = await worker.recognize(buffer);
+      const text = result.data.text?.trim() || "";
+      await worker.terminate();
+      const score = ocrQualityScore(text);
+
+      console.log("[OCR-Label] PSM=" + psm + " len=" + text.length + " quality=" + (score * 100).toFixed(0) + "%");
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestText = text;
+      }
+      if (score > 0.5) break;
+    } catch (err: any) {
+      console.warn("[OCR-Label] PSM=" + psm + " failed: " + err.message);
     }
   }
   return bestText;
@@ -410,14 +481,38 @@ export async function recognizeHealthImage(messageId: string, imageKey: string):
   }
 
   // 步骤2.5：检测是否为食品营养成分表
-  if (isNutritionLabelImage(ocrText)) {
+  // 如果第一次 OCR 未能检出营养成分表，尝试包装专用预处理再 OCR 一次
+  let ocrForNutrition = ocrText;
+  if (!isNutritionLabelImage(ocrText)) {
+    console.log(`[图片识别] 常规 OCR 未检出营养成分表，尝试包装专用预处理...`);
+    try {
+      const labelProcessed = await preprocessForLabel(imageBuffer, 3);
+      const labelOcrText = await ocrForLabel(labelProcessed, 'chi_sim+eng');
+      console.log(`[图片识别] 包装专用 OCR 完成, 文字长度: ${labelOcrText.length}`);
+      console.log(`[包装OCR 原始文字] ${labelOcrText.substring(0, 500)}`);
+      if (isNutritionLabelImage(labelOcrText)) {
+        console.log(`[图片识别] ✅ 包装专用 OCR 检出营养成分表，使用二次 OCR 结果`);
+        ocrForNutrition = labelOcrText;
+      } else {
+        console.log(`[图片识别] 包装专用 OCR 仍未检出营养成分表`);
+        // 保留二次 OCR 结果如果它更长（说明提取到了更多信息）
+        if (labelOcrText.length > ocrText.length * 1.2) {
+          ocrForNutrition = labelOcrText;
+        }
+      }
+    } catch (err: any) {
+      console.log(`[图片识别] 包装专用 OCR 失败: ${err.message}，继续使用常规OCR`);
+    }
+  }
+
+  if (isNutritionLabelImage(ocrForNutrition)) {
     console.log(`[图片识别] 检测到营养成分表，切换到营养标签识别模式`);
-    const nutritionResult = await recognizeNutritionLabel(ocrText);
+    const nutritionResult = await recognizeNutritionLabel(ocrForNutrition);
     if (nutritionResult.success) {
       return {
         success: true,
         nutritionLabel: nutritionResult,
-        rawText: ocrText,
+        rawText: ocrForNutrition,
       };
     }
     // 营养成分识别失败，继续尝试健康数据提取（可能是混合内容）

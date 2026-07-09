@@ -9,7 +9,7 @@ import { addPendingImage, removePendingImage, updatePendingRetries, listPendingI
 import { fetchAndFormatTraining, fetchHealthData, parseAndSaveHealthText } from '../health/service';
 import { buildDailyReport } from '../health/reportGenerator';
 import { buildDailySentinelReport } from '../sentinel/reportBuilder';
-import { listFoods } from '../health/foodLibrary';
+import { listFoods, lookupPackagedFood } from '../health/foodLibrary';
 import { downloadFeishuFile, extractPdfText, extractResumeDataFromChat, generateAndSendResume } from '../career/pdfService';
 import { analyzeResume, formatAnalysisCard } from '../career/analyzer';
 import { searchJobs, formatJobListings, matchResumeToJob, formatMatchResult, quickResumeSummary, JobListing } from '../career/jobSearch';
@@ -873,9 +873,10 @@ async function handleSystemCommand(
         '• `/reset` `/clear` - 重置对话上下文\n' +
         '• `/status` - 查看会话状态\n' +
         '• `/食物库` - 查看已录入的食物热量库\n' +
+        '• `/查食物 品牌 商品名` - AI查询市售包装食品营养成分（如：/查食物 伊利纯牛奶）\n' +
         '• `/教练 xxx` - 健康教练咨询\n' +
         '• `/代码 xxx` - 编程技术咨询\n' +
-        '\n直接发消息即可与 AI 对话。\n\n📸 发送食品营养成分表图片可自动识别并录入食物库。',
+        '\n直接发消息即可与 AI 对话。\n\n📸 发送食品营养成分表图片可自动识别并录入食物库。\n🔍 输入品牌+商品名可AI自动查询营养成分。',
       );
       return true;
 
@@ -1264,6 +1265,22 @@ async function handleSystemCommand(
         }
         await sender.sendText(chatId, msg);
       }
+      return true;
+    }
+
+    case '/查食物':
+    case '/lookup':
+    case '/foodlookup': {
+      // 用法：/查食物 伊利纯牛奶 或 /查食物 乐事原味薯片
+      const args = parseCommandArgs(text);
+      const query = args.join(' ');
+      if (!query) {
+        await sender.sendText(chatId, '📝 请提供品牌和商品名，例如：\n`/查食物 伊利纯牛奶`\n`/查食物 乐事原味薯片`\n\n💡 支持市面上常见的带营养成分表的包装食品');
+        return true;
+      }
+      await sender.sendText(chatId, `🔍 正在查询「${query}」的营养成分...`);
+      const result = await lookupPackagedFood(query);
+      await sender.sendText(chatId, result.success ? result.message : `❌ ${result.error || '未找到该食物的营养数据'}\n💡 可尝试简化搜索词（只输入商品名）或手动拍照上传营养成分表`);
       return true;
     }
   }

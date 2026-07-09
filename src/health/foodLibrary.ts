@@ -235,3 +235,125 @@ export function importFromNutritionFacts(facts: NutritionFacts): FoodItem {
     source: 'nutrition_label',
   });
 }
+
+// ─── 品牌包装食物查询（基于 AI 知识库） ───
+
+/** 品牌食物查询结果 */
+export interface PackagedFoodResult {
+  success: boolean;
+  food?: FoodItem;
+  message: string;
+  error?: string;
+  /** AI 返回的原始参考信息 */
+  rawNote?: string;
+}
+
+const PACKAGED_FOOD_PROMPT = `你是食品营养数据库助手。用户给你一个市售包装食品的"品牌+商品名"，你返回该产品标准营养成分表数据（每100g或每100ml）。
+
+请返回严格 JSON 格式：
+{
+  "foodName": "品牌 商品名（如：伊利 纯牛奶）",
+  "category": "分类（乳制品/零食/饮品/速食/调味品/主食/肉类/蔬菜/水果/其他）",
+  "caloriesPer100g": 数字(kcal),
+  "carbsPer100g": 数字(g),
+  "proteinPer100g": 数字(g),
+  "fatPer100g": 数字(g),
+  "sodiumPer100g": 数字(mg, 如不确定可填null),
+  "servingSize": 数字(每份克数或毫升数, 如不确定填null),
+  "servingCalories": 数字(每份热量, 如不确定填null),
+  "note": "简短注明数据来源（如：产品标准营养成分表 / 同类产品估算）"
+}
+
+规则：
+1. 优先使用该产品官方营养成分表数据
+2. 如果找不到该具体产品，使用同类产品估算并在 note 说明
+3. 热量计算：蛋白4kcal/g + 碳水4kcal/g + 脂肪9kcal/g，总和应与 caloriesPer100g 大致吻合
+4. 「每份」指包装上标注的一份量（如 250ml/25g/45g）
+5. 只返回 JSON，不要其他文字`;
+
+/**
+ * 通过 AI 知识库查询市售品牌包装食品的营养成分
+ * 查询结果自动存入本地食物库，下次相同食物直接本地匹配
+ */
+export async function lookupPackagedFood(query: string): Promise<PackagedFoodResult> {
+  // 先查本地库
+  const local = findFood(query);
+  if (local) {
+    return {
+      success: true,
+      food: local,
+      message: `📦 食物库已有记录：**${local.name}**\n📊 每100g：${local.caloriesPer100g}kcal | 碳${local.carbsPer100g}g | 蛋${local.proteinPer100g}g | 脂${local.fatPer100g}g${local.sodiumPer100g ? ' | 钠' + local.sodiumPer100g + 'mg' : ''}\n🔖 来源：${local.source === 'nutrition_label' ? '营养成分表' : local.source === 'ai_lookup' ? 'AI知识库' : '手动录入'}`,
+    };
+  }
+
+  // 调用 DeepSeek 查询
+  try {
+    const { getDeepSeekClient } = await import('../claude/client');
+    const { config } = await import('../config');
+    const client = getDeepSeekClient();
+
+    console.log(`[食物查询] AI 查询: "${query}"`);
+    const response = await client.chat.completions.create({
+      model: config.deepseek.model,
+      messages: [
+        { role: 'user', content: `${PACKAGED_FOOD_PROMPT}\n\n查询食物：${query}` },
+      ],
+      max_tokens: 1000,
+      temperature: 0.1,
+    });
+
+    const content = response.choices[0]?.message?.content || '';
+    console.log(`[食物查询] AI 返回: ${content.substring(0, 300)}`);
+
+    // 提取 JSON
+    let jsonStr: string | null = null;
+    const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      const inner = codeBlockMatch[1].trim();
+      const innerJson = inner.match(/\{[\s\S]*\}/);
+      if (innerJson) jsonStr = innerJson[0];
+    }
+    if (!jsonStr) {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonStr = jsonMatch[0];
+    }
+
+    if (!jsonStr) {
+      return { success: false, error: 'AI 未返回有效数据', message: '' };
+    }
+
+    const data = JSON.parse(jsonStr);
+    if (!data.foodName || !data.caloriesPer100g) {
+      return { success: false, error: 'AI 返回数据不完整（缺少食品名或热量）', message: '' };
+    }
+
+    // 存入食物库
+    const foodItem = addFood({
+      name: data.foodName,
+      category: data.category || '其他',
+      caloriesPer100g: data.caloriesPer100g,
+      carbsPer100g: data.carbsPer100g || 0,
+      proteinPer100g: data.proteinPer100g || 0,
+      fatPer100g: data.fatPer100g || 0,
+      sodiumPer100g: data.sodiumPer100g ?? undefined,
+      servingSize: data.servingSize ?? undefined,
+      servingCalories: data.servingCalories ?? undefined,
+      source: 'ai_lookup',
+      createdAt: Date.now(),
+    });
+
+    const servingInfo = foodItem.servingSize
+      ? `，每份 ${foodItem.servingSize}g/${foodItem.servingCalories}kcal`
+      : '';
+    const message = `✅ 已录入食物库：**${foodItem.name}**
+📊 每100g：${foodItem.caloriesPer100g}kcal | 碳${foodItem.carbsPer100g}g | 蛋${foodItem.proteinPer100g}g | 脂${foodItem.fatPer100g}g${foodItem.sodiumPer100g ? ' | 钠' + foodItem.sodiumPer100g + 'mg' : ''}${servingInfo}
+🔖 来源：AI 知识库${data.note ? '（' + data.note + '）' : ''}
+💡 下次输入相同食物将直接匹配，无需再次查询`;
+
+    console.log(`[食物查询] ✅ ${message.replace(/\*\*/g, '').replace(/\n/g, ' ')}`);
+    return { success: true, food: foodItem, message, rawNote: data.note };
+  } catch (err: any) {
+    console.error(`[食物查询] AI 查询失败: ${err.message}`);
+    return { success: false, error: `查询失败: ${err.message}`, message: '' };
+  }
+}
