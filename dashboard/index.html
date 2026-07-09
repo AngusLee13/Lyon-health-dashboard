@@ -1086,15 +1086,9 @@ select.inp { cursor: pointer; }
       var WALKING=['徒步','户外步行','快走','室内步行'];
       var walkCardio=r.cardio&&r.cardio.bodyPart&&WALKING.indexOf(r.cardio.bodyPart)>=0?r.cardio.calories:0;
       var stepCal=walkCardio>0?Math.max(rawStepCal,walkCardio):rawStepCal;
-      // ── PAL 分级 TDEE：替代线性步数公式，避免高步数日 TDEE 失控 ──
-      //     久坐<3k→1.20  轻活3k-8k→1.35  中活8k-15k→1.55  活跃>15k→1.75
-      //     有记录运动时训练消耗另外叠加（不重复乘 PAL）
-      var pal;
-      if(steps<3000) pal=1.20;
-      else if(steps<8000) pal=1.35;
-      else if(steps<15000) pal=1.55;
-      else pal=1.75;
-      var totalBurn=Math.round(bmr*pal+trainCal);
+      // ── TDEE = 久坐基线(BMR×1.2) + 步数消耗 + 训练消耗 ──
+      //     不再用 PAL 分级乘数，避免与步数/训练消耗叠加导致高估
+      var totalBurn=Math.round(bmr*1.2+stepCal+trainCal);
       var actCal=totalBurn-bmr; // 活动消耗 = TDEE - BMR
       // ── 运动奖励：健身热量 + 步数消耗 100% 加入预算（与后端 calorie.ts 一致）──
       //     断食日不给运动奖励
@@ -1160,7 +1154,7 @@ select.inp { cursor: pointer; }
       var hbf=safeEl('heroBurnFormula');
       if(hbf){
         var hasTrain=trainCal>0;
-        hbf.textContent='(BMR '+bmr+' × PAL '+pal.toFixed(2)+(hasTrain?' + 训练 '+trainCal:'')+')';
+        hbf.textContent='(BMR '+bmr+'×1.2 + 步数'+stepCal+(trainCal>0?' + 训练'+trainCal:'')+')';
       }
       // 体重趋势校准：用14天实际体重变化反推真实缺口 vs 估算缺口
       updateConfidenceBadge(d,consumed,totalBurn);
