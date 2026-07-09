@@ -985,7 +985,11 @@ select.inp { cursor: pointer; }
       if(note && formulaTdee && latest.tdeeCalibrated){
         var diff = formulaTdee - latest.tdeeCalibrated;
         if(Math.abs(diff) > 200){
-          note.innerHTML = '⚠️ 公式比校准高 <b>'+Math.abs(diff)+' kcal</b>，实际缺口可能小于估算值';
+          if(diff > 0){
+            note.innerHTML = '⚠️ 公式比校准高 <b>'+Math.abs(diff)+' kcal</b>，实际缺口可能小于估算值';
+          } else {
+            note.innerHTML = '⚠️ 校准比公式高 <b>'+Math.abs(diff)+' kcal</b>，实际消耗可能高于估算值';
+          }
         } else {
           note.innerHTML = '✅ 公式与校准接近（差'+Math.abs(diff)+'kcal），估算可信度较高';
         }
