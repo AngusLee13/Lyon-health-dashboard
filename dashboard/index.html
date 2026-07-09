@@ -980,11 +980,13 @@ select.inp { cursor: pointer; }
     }
     if(latest){
       if(cv) cv.textContent = latest.tdeeCalibrated;
-      if(cd) cd.textContent = '近'+latest.calibrationDays+'天反推';
+      if(cd) cd.textContent = '近'+latest.calibrationDays+'天反推' + (latest.calibrationCapped ? ' ⚠️已截顶' : '');
       if(nv){ nv.textContent = latest.neat!=null ? (latest.neat>=0?'+':'')+latest.neat : '--'; }
       if(note && formulaTdee && latest.tdeeCalibrated){
         var diff = formulaTdee - latest.tdeeCalibrated;
-        if(Math.abs(diff) > 200){
+        if(latest.calibrationCapped){
+          note.innerHTML = '⚠️ 体重波动过大，校准值已截顶至公式±30%范围（'+Math.abs(diff)+'kcal偏差）。积累更多数据后会变准';
+        } else if(Math.abs(diff) > 200){
           if(diff > 0){
             note.innerHTML = '⚠️ 公式比校准高 <b>'+Math.abs(diff)+' kcal</b>，实际缺口可能小于估算值';
           } else {

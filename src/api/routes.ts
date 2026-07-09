@@ -741,7 +741,7 @@ export function createRoutes(messageSender: MessageSender): Router {
 
       // ── 反推校准 TDEE：用体重变化 + 摄入反算真实总消耗 ──
       // 7天滚动窗口：实际TDEE = 窗口日均摄入 + (窗口初体重 - 窗口末体重) × 7700 / 窗口天数
-      const WINDOW = 7;
+      const WINDOW = 14;
       for (let i = 0; i < trends.length; i++) {
         const t = trends[i] as any;
         // 找包含当前日在内的前 WINDOW 天
@@ -750,19 +750,30 @@ export function createRoutes(messageSender: MessageSender): Router {
         const windowItems = trends.slice(windowStart, windowEnd + 1).filter(
           (x: any) => x && x.weight > 0 && x.consumed > 0
         );
-        if (windowItems.length >= 3) {
-          const first: any = windowItems[0];
-          const last: any = windowItems[windowItems.length - 1];
-          if (first && last && first.weight > 0 && last.weight > 0) {
-            const firstW = first.weight;
-            const lastW = last.weight;
-            const actualDays = windowItems.length;
+        if (windowItems.length >= 5) {
+          // 首尾各取2天均值，减少单日水分波动
+          const n = windowItems.length;
+          const headWeights = windowItems.slice(0, Math.min(2, n)).map((x: any) => x.weight);
+          const tailWeights = windowItems.slice(Math.max(0, n - 2)).map((x: any) => x.weight);
+          const firstW = headWeights.reduce((a: number, b: number) => a + b, 0) / headWeights.length;
+          const lastW = tailWeights.reduce((a: number, b: number) => a + b, 0) / tailWeights.length;
+          if (firstW > 0 && lastW > 0) {
+            const actualDays = n;
             const avgIntake = windowItems.reduce((s: number, x: any) => s + x.consumed, 0) / actualDays;
             // 体重下降 = 正缺口；体重上升 = 负缺口
             const weightDelta = firstW - lastW;
             const impliedDeficit = (weightDelta * 7700) / actualDays;
-            const calibratedTdee = Math.round(avgIntake + impliedDeficit);
+            let calibratedTdee = Math.round(avgIntake + impliedDeficit);
+            // 上限：不超过公式TDEE的±30%，防止水分波动导致离谱值
+            const formulaTdee = t.tdee || 3000;
+            const capLow = Math.round(formulaTdee * 0.7);
+            const capHigh = Math.round(formulaTdee * 1.3);
+            const capped = calibratedTdee < capLow || calibratedTdee > capHigh;
+            if (capped) {
+              calibratedTdee = Math.max(capLow, Math.min(capHigh, calibratedTdee));
+            }
             t.tdeeCalibrated = calibratedTdee;
+            t.calibrationCapped = capped;
             // NEAT = 校准TDEE - BMR - 步数消耗 - 训练消耗
             const bmrEst = Math.round(10 * (t.weight || 118) + 6.25 * 181 - 5 * 31 + 5);
             const stepEst = Math.round((t.steps || 0) * 0.04 * ((t.weight || 118) / 70));
