@@ -1,13 +1,25 @@
 // 每晚自动重新生成静态看板并推送到 GitHub Pages
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
 const ROOT = path.resolve(__dirname, '..');
 
-function run(cmd, opts = {}) {
-  console.log('[deploy] ' + cmd);
-  return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', windowsHide: true, ...opts });
+/** 静默执行命令——零窗口闪现 */
+function run(cmd, args, opts = {}) {
+  console.log('[deploy] ' + cmd + ' ' + (args||[]).join(' '));
+  const r = spawnSync(cmd, args, {
+    cwd: ROOT,
+    encoding: 'utf-8',
+    windowsHide: true,
+    shell: false,          // 不经过cmd.exe，彻底消除窗口
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 120000,
+    ...opts,
+  });
+  if (r.error) throw r.error;
+  if (r.stderr) console.error(r.stderr.trim());
+  return r.stdout || '';
 }
 
 console.log('[deploy] ========== ' + new Date().toLocaleString('zh-CN') + ' ==========');
@@ -15,7 +27,7 @@ console.log('[deploy] ========== ' + new Date().toLocaleString('zh-CN') + ' ====
 // 0. 先编译 TypeScript，确保 dist/ 是最新的（generate-standalone-data 依赖 dist/）
 console.log('[deploy] 编译 TypeScript...');
 try {
-  run('npx tsc', { stdio: 'pipe' });
+  run('node', [path.join(ROOT, 'node_modules', '.bin', 'tsc')]);
   console.log('[deploy] TypeScript 编译成功');
 } catch (e) {
   console.error('[deploy] TypeScript 编译失败: ' + e.message);
@@ -26,7 +38,7 @@ try {
 const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
 if (token) {
   try {
-    run('git remote set-url origin https://' + token + '@github.com/AngusLee13/Lyon-health-dashboard.git');
+    run('git', ['remote', 'set-url', 'origin', 'https://' + token + '@github.com/AngusLee13/Lyon-health-dashboard.git']);
     console.log('[deploy] 使用 GH_TOKEN 认证');
   } catch (e) {
     console.error('[deploy] 设置 remote 失败: ' + e.message);
@@ -49,17 +61,17 @@ console.log('[deploy] docs/index.html: ' + (fs.statSync(dst).size / 1024).toFixe
 
 // 4. Git 操作
 try {
-  const status = run('git status --porcelain docs/ dashboard/standalone-data.json dashboard/standalone.html');
+  const status = run('git', ['status', '--porcelain', 'docs/', 'dashboard/standalone-data.json', 'dashboard/standalone.html']);
   if (!status.trim()) {
     console.log('[deploy] 数据无变化，跳过提交');
     restoreRemote();
     process.exit(0);
   }
 
-  run('git add docs/ dashboard/standalone-data.json dashboard/standalone.html');
+  run('git', ['add', 'docs/', 'dashboard/standalone-data.json', 'dashboard/standalone.html']);
   const date = new Date().toISOString().slice(0, 10);
-  run('git commit -m "auto update: ' + date + '"');
-  run('git push origin master');
+  run('git', ['commit', '-m', 'auto update: ' + date]);
+  run('git', ['push', 'origin', 'master']);
 
   console.log('[deploy] 推送成功!');
 } catch (e) {
@@ -71,7 +83,7 @@ try {
 function restoreRemote() {
   if (token) {
     try {
-      run('git remote set-url origin https://github.com/AngusLee13/Lyon-health-dashboard.git');
+      run('git', ['remote', 'set-url', 'origin', 'https://github.com/AngusLee13/Lyon-health-dashboard.git']);
     } catch (_) {}
   }
 }
